@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AZ-Engineering | Administration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #e2e8f0; margin: 0; padding: 20px; }
+        .header { background: #1e3a8a; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .logo-img-small { width: auto; height: 50px; display: block; }
+        .header h1 { margin: 0; font-size: 1.5rem; }
+        .btn-logout { background: transparent; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; padding: 10px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: #cbd5e1; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; color: #334155; font-size: 1rem; transition: 0.3s; }
+        .tab-btn.active { background: #f07150; color: white; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .filters-bar { display: flex; gap: 15px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-wrap: wrap; align-items: center; }
+        .filters-bar input, .filters-bar select { padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'Segoe UI', sans-serif; font-size: 0.95rem; flex: 1; min-width: 200px; outline: none; transition: 0.3s; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid #f07150; position: relative; }
+        .badge { background: #059669; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; position: absolute; top: 20px; right: 90px; }
+        .btn-pdf { position: absolute; top: 15px; right: 20px; background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .info-row { margin-bottom: 8px; color: #475569; font-size: 0.95rem; }
+        .proofs { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+        .proof-img { width: 100%; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; }
+        .proof-box { flex: 1; text-align: center; font-size: 0.8rem; color: #64748b; font-weight: bold; }
+        .tech-container { background: white; padding: 20px; border-radius: 8px; }
+        .tech-form { display: flex; gap: 15px; margin-bottom: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap: wrap; }
+        .tech-form input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1; min-width: 200px; }
+        .tech-table { width: 100%; border-collapse: collapse; }
+        .tech-table th, .tech-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .tech-table th { background: #f1f5f9; }
+
+        /* NOUVEAU CSS POUR LE FORMULAIRE DE MISSION */
+        .mission-form-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .mission-form-group { flex: 1; min-width: 200px; }
+        .mission-form-group label { display: block; font-size: 0.9rem; font-weight: bold; color: #475569; margin-bottom: 5px; }
+        .mission-form-group input, .mission-form-group select, .mission-form-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'Segoe UI', sans-serif; box-sizing: border-box;}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            <img src="logo.png" alt="AZ-Engineering Logo" class="logo-img-small">
+            <h1>Administration - Supervision des Chantiers</h1>
+        </div>
+        <button onclick="seDeconnecter()" class="btn-logout">Déconnexion</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('rapports', this)">📄 Tableaux des Rapports & Missions</button>
+        <button class="tab-btn" onclick="switchTab('techniciens', this)">👷‍♂️ Équipe & Techniciens</button>
+    </div>
+
+    <div id="rapports" class="section active">
+        
+        <div class="card" style="border: 2px solid #1e3a8a; background-color: #f8fafc; margin-bottom: 25px; border-top: none;">
+            <div style="background: #1e3a8a; margin: -20px -20px 20px -20px; padding: 15px 20px; border-radius: 8px 8px 0 0;">
+                <h3 style="color: white; margin: 0;">🛠️ Créer un Ordre de Mission (Dispatch)</h3>
+            </div>
+            
+            <div class="mission-form-row">
+                <div class="mission-form-group">
+                    <label>Assigner à un Technicien</label>
+                    <select id="mission_tech_id">
+                        <option value="">Chargement...</option>
+                    </select>
+                </div>
+                <div class="mission-form-group">
+                    <label>Nom du Client / Entreprise</label>
+                    <input type="text" id="mission_client" placeholder="Ex: CFE Construction...">
+                </div>
+            </div>
+            
+            <div class="mission-form-row">
+                <div class="mission-form-group">
+                    <label>Adresse du chantier</label>
+                    <input type="text" id="mission_adresse" placeholder="Ex: Avenue Louise 120...">
+                </div>
+                <div class="mission-form-group">
+                    <label>Nature de l'intervention</label>
+                    <input type="text" id="mission_nature" placeholder="Ex: Installation fibre...">
+                </div>
+            </div>
+            
+            <div class="mission-form-group" style="margin-bottom: 15px;">
+                <label>Description du problème (Pour le technicien)</label>
+                <textarea id="mission_desc" placeholder="Détaillez la panne ou le travail à faire..." style="resize: vertical; min-height: 80px;"></textarea>
+            </div>
+            
+            <button onclick="creerOrdreMission()" style="background: #10b981; color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                ENVOYER AU TECHNICIEN
+            </button>
+        </div>
+        <div class="filters-bar">
+            <input type="text" id="filter-recherche" placeholder="🔍 Rechercher (client, technicien)..." onkeyup="appliquerFiltres()">
+            <input type="month" id="filter-mois" onchange="appliquerFiltres()">
+            <select id="filter-tech" onchange="appliquerFiltres()">
+                <option value="">👷‍♂️ Tous les techniciens</option>
+            </select>
+        </div>
+        <div class="grid" id="rapports-container"><p style="padding: 20px;">Chargement des rapports en cours...</p></div>
+    </div>
+
+    <div id="techniciens" class="section">
+        <div class="tech-container">
+            <h2 style="color: #1e3a8a; margin-top: 0;">Ajouter un nouveau technicien</h2>
+            <div class="tech-form">
+                <input type="text" id="new_nom" placeholder="Nom complet">
+                <input type="email" id="new_email" placeholder="Adresse Email">
+                <input type="text" id="new_pass" placeholder="Mot de passe">
+                <button onclick="addTechnicien()" style="background:#059669; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Ajouter</button>
+            </div>
+
+            <div id="edit-tech-form" style="display: none; background: #fffbeb; padding: 20px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 30px;">
+                <h3 style="margin-top: 0; color: #d97706;">Modifier les informations du technicien</h3>
+                <input type="hidden" id="edit_id"> 
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <input type="text" id="edit_nom" placeholder="Nom complet" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1;">
+                    <input type="email" id="edit_email" placeholder="Adresse Email" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1;">
+                    <input type="password" id="edit_mdp" placeholder="Nouveau mot de passe (optionnel)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1;">
+                </div>
+                
+                <button onclick="envoyerLaModificationTech()" style="background:#d97706; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Enregistrer</button>
+                <button onclick="fermerMenuModificationTech()" style="background:#94a3b8; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left: 10px;">Annuler</button>
+            </div>
+            
+            <table class="tech-table">
+                <thead><tr><th>ID</th><th>Nom</th><th>Email</th><th>Action</th></tr></thead>
+                <tbody id="tech-list"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. SÉCURITÉ PASSE-PARTOUT ---
+        const user = JSON.parse(localStorage.getItem('user'));
+        
+        if(!user) {
+            window.location.href = 'login.html';
+        }
+
+        function seDeconnecter() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // --- 2. GESTION DES RAPPORTS ET MISSIONS ---
+        let tousLesRapports = [];
+
+        async function loadRapports() {
+            try {
+                const res = await fetch('/api/interventions');
+                tousLesRapports = await res.json();
+                initialiserFiltres(tousLesRapports);
+                afficherRapports(tousLesRapports);
+            } catch(e) {
+                document.getElementById('rapports-container').innerHTML = "<p style='color:red;'>Erreur serveur.</p>";
+            }
+        }
+
+        function initialiserFiltres(rapports) {
+            const selectTech = document.getElementById('filter-tech');
+            const techSet = new Set();
+            rapports.forEach(r => { if(r.tech_nom) techSet.add(r.tech_nom); });
+            selectTech.innerHTML = '<option value="">👷‍♂️ Tous les techniciens</option>';
+            techSet.forEach(t => selectTech.innerHTML += `<option value="${t}">${t}</option>`);
+        }
+
+        function appliquerFiltres() {
+            const valRecherche = document.getElementById('filter-recherche').value.toLowerCase();
+            const valMois = document.getElementById('filter-mois').value;
+            const valTech = document.getElementById('filter-tech').value;
+
+            const rapportsFiltres = tousLesRapports.filter(r => {
+                const texteGlobal = `${r.nom_client || ""} ${r.tech_nom || ""} ${r.nature_intervention || ""} ${r.description || ""}`.toLowerCase();
+                const matchRecherche = texteGlobal.includes(valRecherche);
+                
+                let matchMois = true;
+                if (valMois !== "") {
+                    const d = new Date(r.date_intervention);
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const year = d.getFullYear();
+                    matchMois = (`${year}-${month}` === valMois);
+                }
+
+                const matchTech = (valTech === "" || (r.tech_nom || "") === valTech);
+                return matchRecherche && matchMois && matchTech;
+            });
+            afficherRapports(rapportsFiltres);
+        }
+
+        function afficherRapports(rapports) {
+            const container = document.getElementById('rapports-container');
+            container.innerHTML = '';
+            if(rapports.length === 0) {
+                container.innerHTML = '<p>Aucun rapport trouvé.</p>'; return;
+            }
+
+            rapports.forEach((r, i) => {
+                const date = new Date(r.date_intervention).toLocaleDateString('fr-FR');
+                const photoHtml = r.photo_data ? `<img src="${r.photo_data}" class="proof-img">` : `<div style="padding:10px; border:1px dashed #cbd5e1; border-radius:6px;">En attente de photo</div>`;
+                const sigHtml = r.signature_data ? `<img src="${r.signature_data}" class="proof-img" style="object-fit:contain;">` : `<div style="padding:10px; border:1px dashed #cbd5e1; border-radius:6px;">En attente de signature</div>`;
+                const cardId = `rapport-${i}`;
+                const horaires = (r.heure_debut && r.heure_fin) ? `${r.heure_debut} à ${r.heure_fin}` : 'À planifier par le technicien';
+                
+                // Gérer l'affichage du statut
+                let statutColor = r.statut === 'À Faire' ? '#eab308' : (r.statut === 'Terminé' ? '#059669' : '#dc2626');
+
+                container.innerHTML += `
+                    <div class="card" id="${cardId}">
+                        <div class="badge" style="background:${statutColor}; right:20px; top:15px;">${r.statut || 'Terminé'}</div>
+                        ${r.statut === 'Terminé' ? `<button class="btn-pdf" style="top: 45px;" onclick="genererPDF('${cardId}', '${r.nom_client || 'Client'}')">📄 PDF</button>` : ''}
+                        
+                        <h2 style="margin-top: 0; padding-right: 80px;">Client : ${r.nom_client || 'Non renseigné'}</h2>
+                        <div class="info-row"><strong>Technicien assigné :</strong> ${r.tech_nom || 'Inconnu'}</div>
+                        <div class="info-row"><strong>Adresse :</strong> ${r.adresse || 'Non renseignée'}</div>
+                        <div class="info-row"><strong>Date création :</strong> ${date} | <strong>Horaires :</strong> ${horaires}</div>
+                        <div class="info-row"><strong>Nature :</strong> ${r.nature_intervention || '-'}</div>
+                        <div class="info-row" style="background:#f8fafc; padding:10px; margin-top:10px;"><strong>Description :</strong><br>${r.description || '-'}</div>
+                        <div class="proofs">
+                            <div class="proof-box">PHOTO<br>${photoHtml}</div>
+                            <div class="proof-box">SIGNATURE<br>${sigHtml}</div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function genererPDF(elementId, nomClient) {
+            const element = document.getElementById(elementId);
+            const btn = element.querySelector('.btn-pdf'); 
+            if(btn) btn.style.display = 'none'; 
+            
+            const opt = {
+                margin: 10, filename: `Intervention_${nomClient}.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 2, useCORS: true, windowHeight: element.scrollHeight }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => { if(btn) btn.style.display = 'block'; });
+        }
+
+        // --- NOUVEAU : FONCTIONS POUR CRÉER UNE MISSION ---
+        
+        async function chargerTechniciensPourMission() {
+            try {
+                const res = await fetch('/api/techniciens');
+                const techniciens = await res.json();
+                const select = document.getElementById('mission_tech_id');
+                select.innerHTML = '<option value="">-- Choisissez un technicien --</option>';
+                techniciens.forEach(tech => {
+                    select.innerHTML += `<option value="${tech.id}">${tech.nom}</option>`;
+                });
+            } catch (err) {
+                console.error("Erreur chargement tech mission :", err);
+            }
+        }
+
+        async function creerOrdreMission() {
+            const technicien_id = document.getElementById('mission_tech_id').value;
+            const nom_client = document.getElementById('mission_client').value.trim();
+            const adresse = document.getElementById('mission_adresse').value.trim();
+            const nature_intervention = document.getElementById('mission_nature').value.trim();
+            const description = document.getElementById('mission_desc').value.trim();
+
+            if (!technicien_id || !nom_client || !adresse || !nature_intervention) {
+                alert("⚠️ Veuillez remplir tous les champs obligatoires (Technicien, Client, Adresse, Nature).");
+                return;
+            }
+
+            // Données envoyées au serveur avec les champs vides que le tech remplira plus tard
+            const missionData = {
+                technicien_id: technicien_id,
+                nom_client: nom_client,
+                adresse: adresse,
+                nature_intervention: nature_intervention,
+                description: description,
+                heure_debut: "",      
+                heure_fin: "",        
+                statut: "À Faire",    
+                photo_data: "",       
+                signature_data: ""    
+            };
+
+            try {
+                const res = await fetch('/api/interventions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(missionData)
+                });
+
+                if (res.ok) {
+                    alert("✅ Ordre de mission créé et envoyé au technicien !");
+                    // On vide le formulaire
+                    document.getElementById('mission_tech_id').value = '';
+                    document.getElementById('mission_client').value = '';
+                    document.getElementById('mission_adresse').value = '';
+                    document.getElementById('mission_nature').value = '';
+                    document.getElementById('mission_desc').value = '';
+                    
+                    // On recharge la liste pour voir la mission apparaître
+                    loadRapports(); 
+                } else {
+                    const error = await res.json();
+                    alert("❌ Erreur Serveur : " + (error.error || "Impossible de créer."));
+                }
+            } catch (err) {
+                alert("❌ Erreur de connexion au serveur.");
+            }
+        }
+
+
+        // --- 3. GESTION DES TECHNICIENS (CRUD COMPLET) ---
+        
+        async function loadTechniciens() {
+            const res = await fetch('/api/techniciens'); 
+            const techniciens = await res.json(); 
+            const tbody = document.getElementById('tech-list'); 
+            tbody.innerHTML = '';
+            
+            techniciens.forEach(t => {
+                tbody.innerHTML += `<tr>
+                    <td>#${t.id}</td>
+                    <td><strong>${t.nom}</strong></td>
+                    <td>${t.email}</td>
+                    <td>
+                        <button onclick="ouvrirMenuModificationTech('${t.id}', '${t.nom}', '${t.email}')" style="background:#eab308; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; margin-right: 5px;">✏️ Modifier</button>
+                        <button onclick="deleteTechnicien(${t.id})" style="background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">🗑️ Retirer</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        async function addTechnicien() {
+            const nom = document.getElementById('new_nom').value; 
+            const email = document.getElementById('new_email').value; 
+            const mot_de_passe = document.getElementById('new_pass').value; 
+            
+            if(!nom || !email || !mot_de_passe) return alert("Remplissez tout !");
+            
+            await fetch('/api/techniciens', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ nom, email, mot_de_passe }) 
+            }); 
+            
+            alert("Technicien ajouté !"); 
+            document.getElementById('new_nom').value = "";
+            document.getElementById('new_email').value = "";
+            document.getElementById('new_pass').value = "";
+            
+            loadTechniciens();
+        }
+
+        async function deleteTechnicien(id) {
+            if(!confirm("Êtes-vous sûr de vouloir retirer ce technicien ?")) return; 
+            await fetch(`/api/techniciens/${id}`, { method: 'DELETE' }); 
+            loadTechniciens();
+        }
+
+        // --- NOUVELLES FONCTIONS DE MODIFICATION ---
+
+        function ouvrirMenuModificationTech(id, nom, email) {
+            document.getElementById('edit-tech-form').style.display = 'block';
+            document.getElementById('edit_id').value = id;
+            document.getElementById('edit_nom').value = nom;
+            document.getElementById('edit_email').value = email;
+            document.getElementById('edit_mdp').value = ''; 
+            
+            document.getElementById('edit-tech-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function fermerMenuModificationTech() {
+            document.getElementById('edit-tech-form').style.display = 'none';
+        }
+
+        async function envoyerLaModificationTech() {
+            const id = document.getElementById('edit_id').value;
+            const nouveauNom = document.getElementById('edit_nom').value;
+            const nouvelEmail = document.getElementById('edit_email').value;
+            const nouveauMdp = document.getElementById('edit_mdp').value; 
+
+            if(!nouveauNom || !nouvelEmail) return alert("Le nom et l'email sont obligatoires.");
+
+            try {
+                const res = await fetch(`/api/techniciens/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nom: nouveauNom, email: nouvelEmail, mot_de_passe: nouveauMdp })
+                });
+
+                if(res.ok) {
+                    alert("Les informations du technicien ont été modifiées !");
+                    fermerMenuModificationTech();
+                    document.getElementById('edit_mdp').value = ''; 
+                    loadTechniciens();
+                } else {
+                    alert("Erreur lors de la modification.");
+                }
+            } catch (e) {
+                alert("Erreur serveur lors de la communication.");
+            }
+        }
+        
+        // Initialisation de la page
+        chargerTechniciensPourMission(); // 👈 On charge le menu déroulant
+        loadRapports(); 
+        loadTechniciens();
+    </script>
+</body>
+</html>

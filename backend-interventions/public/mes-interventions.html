@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AZ-Engineering | Mes Interventions</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root { --primary: #1e3a8a; --accent: #f07150; --bg-color: #f1f5f9; --card-bg: #ffffff; --text-main: #334155; }
+        
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 0; padding-bottom: 30px;}
+        
+        /* Header */
+        .app-header { background: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
+        .back-btn { color: var(--primary); font-size: 1.2rem; cursor: pointer; text-decoration: none; }
+        .header-title { font-weight: 600; color: var(--primary); font-size: 1.1rem; margin: 0; }
+        
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+
+        /* --- ONGLETS --- */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 5px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tab-btn { flex: 1; background: transparent; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; color: #64748b; font-size: 0.9rem; transition: 0.3s; font-family: 'Poppins', sans-serif; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Filtre Calendrier */
+        .filter-box { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .filter-box label { display: block; font-size: 0.9rem; color: #64748b; font-weight: 500; margin-bottom: 8px; }
+        .filter-box input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: 'Poppins', sans-serif; font-size: 1rem; outline: none; box-sizing: border-box; }
+        .filter-box input:focus { border-color: var(--primary); }
+
+        /* Cartes d'historique */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 4px solid var(--primary); }
+        .card.urgent { border-left-color: var(--accent); }
+        .card h3 { margin: 0 0 10px 0; color: var(--primary); font-size: 1.1rem; }
+        .info-row { margin-bottom: 5px; font-size: 0.9rem; color: #475569; }
+        .info-row i { width: 20px; color: var(--accent); }
+        
+        /* Badges de statut */
+        .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; color: white; display: inline-block; margin-top: 10px; }
+        .bg-success { background: #059669; }
+        .bg-warning { background: #d97706; }
+        .bg-danger { background: #dc2626; }
+        .bg-todo { background: #3b82f6; } /* Bleu pour "À faire" */
+
+        /* NOUVEAU : Bouton pour ouvrir la mission */
+        .btn-open-mission {
+            display: block;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: center;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 15px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(30, 58, 138, 0.3);
+            transition: background 0.2s;
+        }
+        .btn-open-mission:active { background: #152c6b; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+        <h1 class="header-title">Mes Interventions</h1>
+        <div style="width: 20px;"></div>
+    </header>
+
+    <div class="container">
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-afaire', this)"><i class="fas fa-hourglass-half"></i> À Faire</button>
+            <button class="tab-btn" onclick="switchTab('tab-historique', this)"><i class="fas fa-check-circle"></i> Historique</button>
+        </div>
+
+        <div id="tab-afaire" class="tab-content active">
+            <div id="liste-afaire">
+                <p style="text-align:center; color: #64748b;">Chargement de vos missions...</p>
+            </div>
+        </div>
+
+        <div id="tab-historique" class="tab-content">
+            <div class="filter-box">
+                <label for="filter-mois"><i class="far fa-calendar-alt"></i> Filtrer les archives par mois :</label>
+                <input type="month" id="filter-mois" onchange="afficherRapports()">
+            </div>
+            <div id="liste-historique">
+                </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 1. Vérification connexion
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = 'login.html';
+
+        let mesInterventionsGlobales = []; 
+
+        // 2. Gestion des onglets
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // 3. Récupération des données
+        async function chargerDonnees() {
+            try {
+                const res = await fetch('/api/interventions');
+                const toutesInterventions = await res.json();
+                
+                // Garder seulement les miennes
+                mesInterventionsGlobales = toutesInterventions.filter(r => r.technicien_id === user.id || r.tech_nom === user.nom);
+
+                afficherRapports(); 
+            } catch (error) {
+                document.getElementById('liste-afaire').innerHTML = '<p style="color:red; text-align:center;">Erreur de chargement.</p>';
+            }
+        }
+
+        // NOUVEAU : Fonction pour aller vers la fiche technique avec l'ID de la mission
+        function ouvrirMission(idIntervention) {
+            window.location.href = `fiche-technique.html?id=${idIntervention}`;
+        }
+
+        // 4. Moteur d'affichage et de filtrage
+        function afficherRapports() {
+            const containerAfaire = document.getElementById('liste-afaire');
+            const containerHistorique = document.getElementById('liste-historique');
+            const valMois = document.getElementById('filter-mois').value;
+
+            // --- SÉPARATION INTELLIGENTE ---
+            const aFaire = mesInterventionsGlobales.filter(r => r.statut !== 'Terminé');
+            let terminees = mesInterventionsGlobales.filter(r => r.statut === 'Terminé');
+
+            // Le filtre calendrier ne s'applique QU'À l'historique !
+            if (valMois !== "") {
+                terminees = terminees.filter(r => {
+                    const d = new Date(r.date_intervention);
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const year = d.getFullYear();
+                    return `${year}-${month}` === valMois;
+                });
+            }
+
+            // --- AFFICHAGE "À FAIRE" ---
+            containerAfaire.innerHTML = '';
+            if (aFaire.length === 0) {
+                containerAfaire.innerHTML = '<p style="text-align:center; color:#64748b; margin-top:30px;"><i class="fas fa-glass-cheers" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px;"></i><br>Super, vous n\'avez aucune intervention en attente !</p>';
+            } else {
+                aFaire.reverse().forEach(r => {
+                    const date = new Date(r.date_intervention).toLocaleDateString('fr-FR');
+                    containerAfaire.innerHTML += creerCarteHTML(r, date, true);
+                });
+            }
+
+            // --- AFFICHAGE "HISTORIQUE" ---
+            containerHistorique.innerHTML = '';
+            if (terminees.length === 0) {
+                containerHistorique.innerHTML = '<p style="text-align:center; color:#64748b; margin-top:30px;"><i class="fas fa-folder-open" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px;"></i><br>Aucune archive pour cette période.</p>';
+            } else {
+                terminees.reverse().forEach(r => {
+                    const date = new Date(r.date_intervention).toLocaleDateString('fr-FR');
+                    containerHistorique.innerHTML += creerCarteHTML(r, date, false);
+                });
+            }
+        }
+
+        // Fonction pour dessiner une carte proprement avec les détails vitaux
+        function creerCarteHTML(r, date, isAFaire) {
+            let badgeClass = 'bg-success';
+            let statutText = r.statut || 'Non spécifié';
+
+            if (!r.statut || r.statut.toLowerCase() === 'à faire' || r.statut === '') { badgeClass = 'bg-todo'; statutText = 'À faire'; }
+            else if (r.statut.includes('attente')) { badgeClass = 'bg-warning'; }
+            else if (r.statut.includes('replanifier')) { badgeClass = 'bg-danger'; }
+
+            // Si c'est à faire, on met un bord orange pour attirer l'attention
+            const cardClass = isAFaire ? 'card urgent' : 'card';
+            
+            // NOUVEAU : Si la carte est "À Faire", on ajoute le bouton d'action
+            let boutonActionHTML = '';
+            if (isAFaire) {
+                boutonActionHTML = `
+                    <button class="btn-open-mission" onclick="ouvrirMission(${r.id})">
+                        COMPLÉTER LA MISSION <i class="fas fa-arrow-right" style="margin-left: 5px;"></i>
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="${cardClass}">
+                    <h3 style="margin-bottom: 15px;">
+                        <i class="fas fa-building" style="color: var(--primary); font-size: 1rem; margin-right: 5px;"></i> 
+                        ${r.nom_client || 'Société non renseignée'}
+                    </h3>
+                    
+                    <div class="info-row"><i class="far fa-calendar-alt"></i> <strong>Prévu le :</strong> ${date}</div>
+                    <div class="info-row"><i class="fas fa-map-marker-alt" style="color: #ef4444;"></i> <strong>Adresse :</strong> ${r.adresse || 'Adresse à préciser'}</div>
+                    <div class="info-row"><i class="fas fa-tools"></i> <strong>Nature :</strong> ${r.nature_intervention || 'Non spécifiée'}</div>
+                    <div class="info-row" style="margin-top:10px; background:#f8fafc; padding:8px; border-radius:6px; font-size:0.85rem;">
+                        <strong>Note du bureau :</strong><br> ${r.description || 'Aucune note supplémentaire.'}
+                    </div>
+                    
+                    <div style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        <span class="badge ${badgeClass}">${statutText}</span>
+                    </div>
+                    
+                    ${boutonActionHTML}
+                </div>
+            `;
+        }
+
+        // Démarrage
+        chargerDonnees();
+    </script>
+</body>
+</html>

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AZ-Engineering | Fiche d'Intervention</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* --- VARIABLES & RESET --- */
+        :root {
+            --primary: #1e3a8a;
+            --accent: #f07150;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 100px;
+        }
+
+        /* --- HEADER MODERNE --- */
+        .app-header {
+            background: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-logo { height: 40px; mix-blend-mode: multiply; }
+        .header-title { font-weight: 600; color: var(--primary); font-size: 1.1rem; margin: 0; }
+        .logout-btn { color: #ef4444; background: none; border: none; font-size: 1.2rem; cursor: pointer; }
+
+        /* --- CONTENEUR & CARTES --- */
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            border: none; 
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin: -20px -20px 20px -20px; 
+            padding: 15px 20px;
+            background: var(--primary);
+            border-bottom: 3px solid var(--accent);
+        }
+
+        .card-header i { color: white; font-size: 1.2rem; margin-right: 12px; }
+        .card-header h3 { margin: 0; font-size: 1.1rem; color: white; font-weight: 600; letter-spacing: 0.5px; }
+
+        /* --- CHAMPS DE SAISIE --- */
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 5px; color: var(--text-light); }
+        
+        .time-row { display: flex; gap: 15px; }
+        .time-row .input-group { flex: 1; }
+
+        input[type="text"], input[type="time"], select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: #f8fafc;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        /* Style pour les champs verrouillés par le patron */
+        input:disabled { background-color: #e2e8f0; color: #94a3b8; border-color: #cbd5e1; font-weight: bold; }
+
+        textarea { resize: vertical; min-height: 100px; }
+        input:not(:disabled):focus, select:focus, textarea:focus { border: 2px solid var(--primary); background: white; }
+
+        /* --- BOUTON APPAREIL PHOTO --- */
+        .photo-upload-container { text-align: center; }
+        #photo_input { display: none; }
+        .custom-file-upload {
+            display: inline-block;
+            background: #eff6ff;
+            color: var(--primary);
+            padding: 15px 25px;
+            border-radius: 12px;
+            border: 2px dashed #bfdbfe;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+        .custom-file-upload:active { background: #dbeafe; }
+        .custom-file-upload i { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+        #photo_preview { max-width: 100%; border-radius: 10px; margin-top: 15px; display: none; border: 1px solid #e2e8f0; }
+
+        /* --- ZONE DE SIGNATURE --- */
+        .signature-wrapper { border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; overflow: hidden; position: relative; }
+        canvas { width: 100%; height: 200px; touch-action: none; }
+        .clear-btn {
+            position: absolute; bottom: 10px; right: 10px;
+            background: rgba(255, 255, 255, 0.9); border: 1px solid #e2e8f0;
+            padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-family: 'Poppins', sans-serif;
+        }
+
+        /* --- BOUTON SOUMETTRE FLOTTANT --- */
+        .submit-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; padding: 15px 20px; box-sizing: border-box;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 100;
+        }
+        .btn-submit {
+            background: linear-gradient(135deg, var(--accent), #d95e3e);
+            color: white; border: none; padding: 16px; width: 100%;
+            border-radius: 12px; font-size: 1.1rem; font-weight: 700;
+            font-family: 'Poppins', sans-serif; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(240, 113, 80, 0.3);
+        }
+
+        /* Notifications Toast */
+        .toast {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: white; padding: 12px 24px;
+            border-radius: 50px; font-weight: 600; font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            display: none; z-index: 1000;
+        }
+        .toast.error { background: #ef4444; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <a href="mes-interventions.html" style="color: var(--primary); font-size: 1.2rem; text-decoration: none;"><i class="fas fa-arrow-left"></i></a>
+        <h1 class="header-title" id="titre-page">Nouvelle Fiche</h1>
+        <button class="logout-btn" onclick="deconnexion()"><i class="fas fa-sign-out-alt"></i></button>
+    </header>
+
+    <div id="toast-msg" class="toast">✅ Rapport envoyé !</div>
+
+    <div class="container">
+        
+        <div class="card" id="card-infos">
+            <div class="card-header">
+                <i class="fas fa-user-tie"></i>
+                <h3>Informations Générales</h3>
+            </div>
+            <div class="input-group">
+                <label>Nom du client / Entreprise</label>
+                <input type="text" id="nom_client" placeholder="Ex: CFE Construction...">
+            </div>
+            
+            <div class="input-group">
+                <label>Adresse du chantier</label>
+                <input type="text" id="adresse" placeholder="Ex: Avenue Louise 120, 1000 Bruxelles">
+            </div>
+            
+            <div class="time-row">
+                <div class="input-group">
+                    <label>Heure de début</label>
+                    <input type="time" id="heure_debut">
+                </div>
+                <div class="input-group">
+                    <label>Heure de fin</label>
+                    <input type="time" id="heure_fin">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-tools"></i>
+                <h3>Détails techniques</h3>
+            </div>
+            <div class="input-group">
+                <label>Nature de l'intervention</label>
+                <input type="text" id="nature_intervention" placeholder="Ex: Installation fibre, Maintenance serveur...">
+            </div>
+            <div class="input-group">
+                <label>Description des travaux / Observations</label>
+                <textarea id="description" placeholder="Détaillez ce qui a été fait sur place..."></textarea>
+            </div>
+            <div class="input-group">
+                <label>Statut</label>
+                <select id="statut">
+                    <option value="Terminé">Terminé (Succès)</option>
+                    <option value="En attente de pièce">En attente de pièce</option>
+                    <option value="A replanifier">À replanifier</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-camera"></i>
+                <h3>Preuve Visuelle</h3>
+            </div>
+            <div class="photo-upload-container">
+                <input type="file" id="photo_input" accept="image/*" capture="environment" onchange="previewPhoto(event)">
+                <label for="photo_input" class="custom-file-upload">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    Prendre une photo du chantier
+                </label>
+                <img id="photo_preview" alt="Aperçu de la photo">
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-pen-nib"></i>
+                <h3>Validation Client</h3>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-light); margin-top:0;">Faites signer le client directement sur l'écran.</p>
+            <div class="signature-wrapper">
+                <canvas id="signature_pad"></canvas>
+                <button class="clear-btn" onclick="clearSignature()"><i class="fas fa-eraser"></i> Effacer</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="submit-bar">
+        <button class="btn-submit" id="btn-envoyer" onclick="envoyerRapport()">ENVOYER LE RAPPORT</button>
+    </div>
+
+    <script>
+        // 1. Vérification connexion
+        let technicien = JSON.parse(localStorage.getItem('user'));
+        if (!technicien) { window.location.href = 'login.html'; }
+
+        // --- NOUVEAU : LE DÉTECTIVE DE MISSION (PHASE 2) ---
+        // On cherche s'il y a un "?id=XX" dans l'adresse de la page
+        const urlParams = new URLSearchParams(window.location.search);
+        const missionId = urlParams.get('id');
+
+        async function chargerMissionSiExistante() {
+            if (!missionId) return; // S'il n'y a pas d'ID, c'est une intervention spontanée normale
+
+            try {
+                // On récupère les infos depuis le serveur
+                const res = await fetch('/api/interventions');
+                const interventions = await res.json();
+                
+                // On trouve la mission exacte du technicien
+                const mission = interventions.find(i => i.id == missionId);
+
+                if (mission) {
+                    // On change le titre
+                    document.getElementById('titre-page').innerHTML = `Mission <span style="color:#f07150;">#${mission.id}</span>`;
+
+                    // On pré-remplit les champs
+                    const elClient = document.getElementById('nom_client');
+                    const elAdresse = document.getElementById('adresse');
+                    const elNature = document.getElementById('nature_intervention');
+                    const elDesc = document.getElementById('description');
+
+                    elClient.value = mission.nom_client || '';
+                    elAdresse.value = mission.adresse || '';
+                    elNature.value = mission.nature_intervention || '';
+
+                    // NOUVEAU : On verrouille ces champs pour que le tech ne s'embête pas
+                    elClient.disabled = true;
+                    elAdresse.disabled = true;
+                    elNature.disabled = true;
+
+                    // On prépare la boîte de description
+                    if (mission.description) {
+                        elDesc.value = "📋 DEMANDE DU BUREAU :\n" + mission.description + "\n\n🛠️ MON RAPPORT (À compléter) :\n";
+                    }
+                }
+            } catch(e) {
+                console.error("Erreur chargement mission :", e);
+            }
+        }
+        // On lance la fonction au démarrage
+        chargerMissionSiExistante();
+
+
+        // 2. Gestion de la Photo
+        let base64Photo = "";
+        function previewPhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('photo_preview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    base64Photo = e.target.result; 
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 3. Gestion de la Signature
+        const canvas = document.getElementById('signature_pad');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = 200;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000';
+
+        function startPosition(e) { isDrawing = true; draw(e); }
+        function endPosition() { isDrawing = false; ctx.beginPath(); }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault(); 
+            let x = e.clientX || e.touches[0].clientX;
+            let y = e.clientY || e.touches[0].clientY;
+            const rect = canvas.getBoundingClientRect();
+            x = x - rect.left;
+            y = y - rect.top;
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', startPosition, {passive: false});
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', draw, {passive: false});
+
+        function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        
+        function estCanvasVide() {
+            const blank = document.createElement('canvas');
+            blank.width = canvas.width;
+            blank.height = canvas.height;
+            return canvas.toDataURL() === blank.toDataURL();
+        }
+
+        // 4. Alertes (Toasts)
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerText = msg;
+            toast.className = isError ? 'toast error' : 'toast';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        // 5. Envoi au Serveur
+        async function envoyerRapport() {
+            const nom_client = document.getElementById('nom_client').value.trim();
+            const adresse = document.getElementById('adresse').value.trim();
+            const heure_debut = document.getElementById('heure_debut').value;
+            const heure_fin = document.getElementById('heure_fin').value;
+            const nature_intervention = document.getElementById('nature_intervention').value.trim(); 
+            const description = document.getElementById('description').value.trim();
+            const statut = document.getElementById('statut').value;
+            const btn = document.getElementById('btn-envoyer');
+
+            if (!nom_client || !adresse || !nature_intervention || !description || !heure_debut || !heure_fin) {
+                return showToast("⚠️ Veuillez remplir tous les champs et horaires.", true);
+            }
+
+            if (heure_debut >= heure_fin) {
+                return showToast("⏰ Erreur : L'heure de fin doit être après l'heure de début.", true);
+            }
+
+            // Si le technicien dit "Terminé", on exige les preuves.
+            if (statut === 'Terminé') {
+                if (!base64Photo) { return showToast("📸 Veuillez ajouter une photo.", true); }
+                if (estCanvasVide()) { return showToast("✍️ La signature du client est requise.", true); }
+            }
+
+            const signatureData = estCanvasVide() ? "" : canvas.toDataURL("image/png");
+
+            btn.innerText = "ENVOI EN COURS...";
+            btn.disabled = true;
+
+            const donneesRapport = {
+                technicien_id: technicien.id,
+                nom_client: nom_client,
+                adresse: adresse,
+                heure_debut: heure_debut,
+                heure_fin: heure_fin,
+                nature_intervention: nature_intervention,
+                description: description,
+                statut: statut,
+                photo_data: base64Photo,
+                signature_data: signatureData
+            };
+
+            // --- NOUVEAU : AIGUILLAGE INTELLIGENT ---
+            // Si on a un missionId, on met à jour la ligne existante (PUT)
+            // Sinon, on crée une nouvelle ligne (POST)
+            let urlApi = '/api/interventions';
+            let methode = 'POST';
+
+            if (missionId) {
+                urlApi = `/api/interventions/${missionId}`;
+                methode = 'PUT'; // La fameuse route créée précédemment dans server.js
+            }
+
+            try {
+                const res = await fetch(urlApi, {
+                    method: methode,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(donneesRapport)
+                });
+
+                if (res.ok) {
+                    showToast("✅ Rapport enregistré avec succès !");
+                    // On redirige vers l'historique au lieu de rester bloqué sur la page
+                    setTimeout(() => { window.location.href = 'mes-interventions.html'; }, 2000);
+                } else {
+                    showToast("❌ Erreur côté serveur.", true);
+                    btn.innerText = "ENVOYER LE RAPPORT";
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                showToast("❌ Impossible de joindre le serveur.", true);
+                btn.innerText = "ENVOYER LE RAPPORT";
+                btn.disabled = false;
+            }
+        }
+
+        // 6. Déconnexion
+        function deconnexion() {
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

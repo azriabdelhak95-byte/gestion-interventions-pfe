@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AZ-Engineering | Connexion</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* --- DESIGN GLOBAL MODERNE --- */
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: linear-gradient(135deg, #1e3a8a 0%, #15285e 100%); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        
+        /* --- LA CARTE BLANCHE --- */
+        .login-box { 
+            background: white; 
+            padding: 50px 40px; 
+            border-radius: 24px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); 
+            width: 90%; 
+            max-width: 360px; 
+            text-align: center; 
+            position: relative;
+        }
+
+        /* --- ZONE DU LOGO XXL --- */
+        .logo-header {
+            width: 100%;
+            margin-bottom: 35px; /* Espace pour faire respirer */
+            display: flex;
+            justify-content: center;
+        }
+
+        .logo-header img {
+            width: 95%; /* Prend quasiment toute la largeur de la carte */
+            max-width: 320px; /* Taille maximale très grande */
+            height: auto;
+            object-fit: contain;
+        }
+        
+        /* --- TEXTES --- */
+        h3 { color: #64748b; margin-top: 0; margin-bottom: 30px; font-weight: 500; font-size: 1.05rem; }
+        
+        /* --- CHAMPS DE SAISIE MODERNES (avec icônes) --- */
+        .input-field {
+            position: relative;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .input-field i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8; 
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        input { 
+            width: 100%; 
+            padding: 16px 20px; 
+            padding-left: 50px; /* Place pour l'icône */
+            background-color: #f8fafc; 
+            border: 2px solid transparent; 
+            border-radius: 12px; 
+            box-sizing: border-box; 
+            font-size: 1rem; 
+            font-family: 'Poppins', sans-serif; 
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus {
+            background-color: white;
+            border: 2px solid #1e3a8a;
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.1);
+        }
+
+        input:focus + i {
+            color: #1e3a8a;
+        }
+        
+        /* --- BOUTON ULTRA DYNAMIQUE --- */
+        button { 
+            background: linear-gradient(135deg, #f07150, #d95e3e); 
+            color: white; 
+            border: none; 
+            padding: 16px; 
+            width: 100%; 
+            border-radius: 12px; 
+            font-size: 1.1rem; 
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-family: 'Poppins', sans-serif;
+            box-shadow: 0 8px 20px rgba(240, 113, 80, 0.3); 
+            margin-top: 10px;
+        }
+
+        button:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 12px 25px rgba(240, 113, 80, 0.4);
+        }
+
+        button:active { transform: translateY(0); }
+
+        /* --- MESSAGE D'ERREUR --- */
+        .error { color: #dc2626; margin-top: 20px; font-weight: 600; display: none; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        
+        <div class="logo-header">
+            <img src="logo.png" alt="AZ-Engineering">
+        </div>
+        
+        <h3>Accès Sécurisé</h3>
+
+        <div class="input-field">
+            <input type="email" id="email" placeholder="Adresse Email">
+            <i class="fas fa-envelope"></i>
+        </div>
+
+        <div class="input-field">
+            <input type="password" id="password" placeholder="Mot de passe">
+            <i class="fas fa-lock"></i>
+        </div>
+        
+        <button onclick="seConnecter()" id="btn-login">SE CONNECTER</button>
+
+        <div id="erreur-msg" class="error">❌ Identifiants incorrects</div>
+    </div>
+
+    <script>
+        async function seConnecter() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('btn-login');
+            const erreurMsg = document.getElementById('erreur-msg');
+
+            if (!email || !password) {
+                erreurMsg.innerText = "⚠️ Veuillez remplir tous les champs.";
+                erreurMsg.style.display = "block"; return;
+            }
+
+            // Animation de chargement
+            btn.innerText = "CONNEXION EN COURS..."; 
+            btn.style.background = "#64748b"; 
+            btn.style.boxShadow = "none";
+            erreurMsg.style.display = "none";
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Sauvegarde de l'utilisateur
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // --- LA REDIRECTION ULTRA BLINDÉE ---
+                    if (data.user.role === 'admin' || data.user.email === 'adil@az-engineering.com' || data.user.email === 'admin@test.com') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        window.location.href = 'index.html'; 
+                    }
+                } else {
+                    erreurMsg.innerText = "❌ Email ou mot de passe incorrect."; 
+                    erreurMsg.style.display = "block"; 
+                    btn.innerText = "SE CONNECTER"; 
+                    btn.style.background = "linear-gradient(135deg, #f07150, #d95e3e)";
+                    btn.style.boxShadow = "0 8px 20px rgba(240, 113, 80, 0.3)";
+                }
+            } catch (err) {
+                erreurMsg.innerText = "❌ Impossible de joindre le serveur."; 
+                erreurMsg.style.display = "block"; 
+                btn.innerText = "SE CONNECTER"; 
+                btn.style.background = "linear-gradient(135deg, #f07150, #d95e3e)";
+                btn.style.boxShadow = "0 8px 20px rgba(240, 113, 80, 0.3)";
+            }
+        }
+    </script>
+</body>
+</html>

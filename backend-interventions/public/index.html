@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AZ-Engineering | Accueil</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: #f1f5f9; 
+            margin: 0; 
+            padding: 20px; 
+            text-align: center; 
+            color: #334155;
+            /* Permet de ne pas avoir de rebond étrange sur iPhone */
+            overscroll-behavior-y: none; 
+        }
+        
+        .header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 15px; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #e2e8f0; 
+            padding-bottom: 20px; 
+            margin-top: 20px;
+        }
+        .logo-img-medium { width: auto; height: 60px; display: block; mix-blend-mode: multiply; }
+        .header h1 { margin: 0; font-size: 1.6rem; color: #1e3a8a; font-weight: 600; text-transform: uppercase; }
+
+        .menu-container { max-width: 400px; margin: auto; }
+        
+        /* Bouton Profil Spécifique */
+        .btn-profil {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            background: #1e3a8a; color: white; border: none; padding: 10px 20px; 
+            border-radius: 30px; font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 500;
+            cursor: pointer; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: 0.2s;
+        }
+        .btn-profil:active { transform: scale(0.95); }
+
+        /* Carte Profil Cachée */
+        .profil-card {
+            display: none; background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+            padding: 20px; text-align: left; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .btn-menu { 
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; padding: 20px; margin: 15px 0; 
+            background: white; border: 2px solid #1e3a8a; color: #1e3a8a; box-sizing: border-box;
+            border-radius: 12px; font-size: 1.1rem; font-weight: 600; 
+            text-decoration: none; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        
+        .btn-menu i { font-size: 1.4rem; } 
+        .btn-menu:active { background: #1e3a8a; color: white; transform: scale(0.98); }
+        
+        .btn-new { border-color: #059669; color: #059669; }
+        .btn-new:active { background: #059669; color: white; transform: scale(0.98); }
+
+        .btn-logout-tech { 
+            margin-top: 20px; border: none; background: none; color: #ef4444; 
+            cursor: pointer; font-weight: 600; padding: 15px; font-size: 1rem; 
+            font-family: 'Poppins', sans-serif; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-logout-tech:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="logo.png" alt="AZ-Engineering Logo" class="logo-img-medium">
+        <h1 id="titre-bonjour">Bonjour</h1>
+    </div>
+    
+    <div class="menu-container">
+        
+        <button onclick="toggleProfil()" class="btn-profil">
+            <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i> Mon Profil
+        </button>
+
+        <div id="section-profil" class="profil-card">
+            <h3 style="margin-top: 0; color: #1e3a8a; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                <i class="fas fa-lock"></i> Sécurité du compte
+            </h3>
+            <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 5px;">Définir un nouveau mot de passe :</label>
+            <input type="password" id="tech_new_mdp" placeholder="••••••••" style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins', sans-serif; box-sizing: border-box; margin-bottom: 10px; outline: none;">
+            <button onclick="changerMotDePasse()" style="width: 100%; background: #059669; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: 'Poppins', sans-serif; font-size: 1rem;">
+                Enregistrer
+            </button>
+        </div>
+
+        <a href="mes-interventions.html" class="btn-menu">
+            <i class="fas fa-clipboard-list"></i> MES INTERVENTIONS
+        </a>
+        
+        <a href="fiche-technique.html" class="btn-menu btn-new">
+            <i class="fas fa-plus-circle"></i> NOUVELLE INTERVENTION
+        </a>
+        
+        <button onclick="logout()" class="btn-logout-tech">
+            <i class="fas fa-sign-out-alt"></i> Déconnexion
+        </button>
+    </div>
+
+    <script>
+        // 1. Vérification Utilisateur
+        const user = JSON.parse(localStorage.getItem('user'));
+        
+        if(!user) {
+            window.location.href = 'login.html';
+        } else {
+            document.getElementById('titre-bonjour').innerText = "Bonjour, " + user.nom;
+        }
+
+        // 2. Afficher / Cacher le profil
+        function toggleProfil() {
+            const p = document.getElementById('section-profil');
+            p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'block' : 'none';
+        }
+
+        // 3. Changer le mot de passe
+        async function changerMotDePasse() {
+            const nouveauMdp = document.getElementById('tech_new_mdp').value;
+
+            if (!nouveauMdp || nouveauMdp.length < 4) {
+                return alert("Veuillez entrer un mot de passe d'au moins 4 caractères.");
+            }
+
+            try {
+                const res = await fetch('/api/technicien/mot-de-passe', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ technicien_id: user.id, nouveau_mdp: nouveauMdp })
+                });
+
+                if (res.ok) {
+                    alert("✅ Mot de passe mis à jour avec succès !");
+                    document.getElementById('tech_new_mdp').value = '';
+                    toggleProfil(); // Referme la boîte
+                } else {
+                    alert("❌ Erreur lors de la modification.");
+                }
+            } catch (e) {
+                alert("Erreur de connexion au serveur.");
+            }
+        }
+
+        // 4. Déconnexion
+        function logout() { 
+            localStorage.clear(); 
+            window.location.href = 'login.html'; 
+        }
+
+        // 5. PWA : Enregistrement du Service Worker (Pour installation mobile)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('✅ PWA prête ! Service Worker enregistré.'))
+                    .catch(err => console.error('❌ Erreur PWA :', err));
+            });
+        }
+    </script>
+</body>
+</html>
