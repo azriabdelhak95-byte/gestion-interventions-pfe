@@ -252,27 +252,21 @@
         let technicien = JSON.parse(localStorage.getItem('user'));
         if (!technicien) { window.location.href = 'login.html'; }
 
-        // --- NOUVEAU : LE DÉTECTIVE DE MISSION (PHASE 2) ---
-        // On cherche s'il y a un "?id=XX" dans l'adresse de la page
+        // --- NOUVEAU : LE DÉTECTIVE DE MISSION ---
         const urlParams = new URLSearchParams(window.location.search);
         const missionId = urlParams.get('id');
 
         async function chargerMissionSiExistante() {
-            if (!missionId) return; // S'il n'y a pas d'ID, c'est une intervention spontanée normale
+            if (!missionId) return; 
 
             try {
-                // On récupère les infos depuis le serveur
                 const res = await fetch('/api/interventions');
                 const interventions = await res.json();
-                
-                // On trouve la mission exacte du technicien
                 const mission = interventions.find(i => i.id == missionId);
 
                 if (mission) {
-                    // On change le titre
                     document.getElementById('titre-page').innerHTML = `Mission <span style="color:#f07150;">#${mission.id}</span>`;
 
-                    // On pré-remplit les champs
                     const elClient = document.getElementById('nom_client');
                     const elAdresse = document.getElementById('adresse');
                     const elNature = document.getElementById('nature_intervention');
@@ -282,12 +276,10 @@
                     elAdresse.value = mission.adresse || '';
                     elNature.value = mission.nature_intervention || '';
 
-                    // NOUVEAU : On verrouille ces champs pour que le tech ne s'embête pas
                     elClient.disabled = true;
                     elAdresse.disabled = true;
                     elNature.disabled = true;
 
-                    // On prépare la boîte de description
                     if (mission.description) {
                         elDesc.value = "📋 DEMANDE DU BUREAU :\n" + mission.description + "\n\n🛠️ MON RAPPORT (À compléter) :\n";
                     }
@@ -296,7 +288,6 @@
                 console.error("Erreur chargement mission :", e);
             }
         }
-        // On lance la fonction au démarrage
         chargerMissionSiExistante();
 
 
@@ -374,7 +365,7 @@
             setTimeout(() => toast.style.display = 'none', 3000);
         }
 
-        // 5. Envoi au Serveur
+        // 5. Envoi au Serveur (LE CŒUR DE LA MISE À JOUR)
         async function envoyerRapport() {
             const nom_client = document.getElementById('nom_client').value.trim();
             const adresse = document.getElementById('adresse').value.trim();
@@ -385,15 +376,19 @@
             const statut = document.getElementById('statut').value;
             const btn = document.getElementById('btn-envoyer');
 
-            if (!nom_client || !adresse || !nature_intervention || !description || !heure_debut || !heure_fin) {
-                return showToast("⚠️ Veuillez remplir tous les champs et horaires.", true);
+            // --- VÉRIFICATION INTELLIGENTE ---
+            // On vérifie toujours les horaires et la description
+            if (!heure_debut || !heure_fin || !description) {
+                return showToast("⚠️ Veuillez remplir les horaires et la description.", true);
             }
-
             if (heure_debut >= heure_fin) {
-                return showToast("⏰ Erreur : L'heure de fin doit être après l'heure de début.", true);
+                return showToast("⏰ L'heure de fin doit être après l'heure de début.", true);
+            }
+            // Si c'est une mission surprise (pas d'ID), on exige les infos client
+            if (!missionId && (!nom_client || !adresse || !nature_intervention)) {
+                return showToast("⚠️ Veuillez remplir les informations du client.", true);
             }
 
-            // Si le technicien dit "Terminé", on exige les preuves.
             if (statut === 'Terminé') {
                 if (!base64Photo) { return showToast("📸 Veuillez ajouter une photo.", true); }
                 if (estCanvasVide()) { return showToast("✍️ La signature du client est requise.", true); }
@@ -417,16 +412,9 @@
                 signature_data: signatureData
             };
 
-            // --- NOUVEAU : AIGUILLAGE INTELLIGENT ---
-            // Si on a un missionId, on met à jour la ligne existante (PUT)
-            // Sinon, on crée une nouvelle ligne (POST)
-            let urlApi = '/api/interventions';
-            let methode = 'POST';
-
-            if (missionId) {
-                urlApi = `/api/interventions/${missionId}`;
-                methode = 'PUT'; // La fameuse route créée précédemment dans server.js
-            }
+            // Décision : PUT (Mise à jour) ou POST (Nouvelle mission)
+            let urlApi = missionId ? `/api/interventions/${missionId}` : '/api/interventions';
+            let methode = missionId ? 'PUT' : 'POST';
 
             try {
                 const res = await fetch(urlApi, {
@@ -435,9 +423,11 @@
                     body: JSON.stringify(donneesRapport)
                 });
 
-                if (res.ok) {
+                const data = await res.json(); // On lit la réponse du serveur
+
+                if (data.success || res.ok) {
                     showToast("✅ Rapport enregistré avec succès !");
-                    // On redirige vers l'historique au lieu de rester bloqué sur la page
+                    // On retourne à l'accueil après 2 secondes
                     setTimeout(() => { window.location.href = 'mes-interventions.html'; }, 2000);
                 } else {
                     showToast("❌ Erreur côté serveur.", true);

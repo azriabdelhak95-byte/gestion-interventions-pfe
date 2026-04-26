@@ -71,7 +71,7 @@
 <body>
 
     <header class="app-header">
-        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+        <a href="login.html" class="back-btn" onclick="logout(event)"><i class="fas fa-sign-out-alt"></i></a>
         <h1 class="header-title">Mes Interventions</h1>
         <div style="width: 20px;"></div>
     </header>
@@ -107,6 +107,13 @@
 
         let mesInterventionsGlobales = []; 
 
+        // Fonction pour se déconnecter
+        function logout(event) {
+            event.preventDefault();
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
         // 2. Gestion des onglets
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
@@ -115,18 +122,21 @@
             btn.classList.add('active');
         }
 
-        // 3. Récupération des données
+        // 3. Récupération des données (OPTIMISÉ POUR TON SERVEUR)
         async function chargerDonnees() {
             try {
-                const res = await fetch('/api/interventions');
-                const toutesInterventions = await res.json();
+                // On utilise la nouvelle API ultra-rapide !
+                const res = await fetch(`/api/mes-missions/${user.id}`);
+                const data = await res.json();
                 
-                // Garder seulement les miennes
-                mesInterventionsGlobales = toutesInterventions.filter(r => r.technicien_id === user.id || r.tech_nom === user.nom);
-
-                afficherRapports(); 
+                if (data.success) {
+                    mesInterventionsGlobales = data.missions;
+                    afficherRapports(); 
+                } else {
+                    document.getElementById('liste-afaire').innerHTML = '<p style="color:red; text-align:center;">Erreur serveur.</p>';
+                }
             } catch (error) {
-                document.getElementById('liste-afaire').innerHTML = '<p style="color:red; text-align:center;">Erreur de chargement.</p>';
+                document.getElementById('liste-afaire').innerHTML = '<p style="color:red; text-align:center;">Erreur de connexion.</p>';
             }
         }
 
@@ -160,7 +170,7 @@
             if (aFaire.length === 0) {
                 containerAfaire.innerHTML = '<p style="text-align:center; color:#64748b; margin-top:30px;"><i class="fas fa-glass-cheers" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px;"></i><br>Super, vous n\'avez aucune intervention en attente !</p>';
             } else {
-                aFaire.reverse().forEach(r => {
+                aFaire.forEach(r => {
                     const date = new Date(r.date_intervention).toLocaleDateString('fr-FR');
                     containerAfaire.innerHTML += creerCarteHTML(r, date, true);
                 });
@@ -171,7 +181,7 @@
             if (terminees.length === 0) {
                 containerHistorique.innerHTML = '<p style="text-align:center; color:#64748b; margin-top:30px;"><i class="fas fa-folder-open" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px;"></i><br>Aucune archive pour cette période.</p>';
             } else {
-                terminees.reverse().forEach(r => {
+                terminees.forEach(r => {
                     const date = new Date(r.date_intervention).toLocaleDateString('fr-FR');
                     containerHistorique.innerHTML += creerCarteHTML(r, date, false);
                 });

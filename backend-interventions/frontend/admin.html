@@ -235,19 +235,24 @@
             });
         }
 
+        // --- CORRECTION DU PDF ---
         function genererPDF(elementId, nomClient) {
             const element = document.getElementById(elementId);
             const btn = element.querySelector('.btn-pdf'); 
-            if(btn) btn.style.display = 'none'; 
+            if(btn) btn.style.display = 'none'; // On cache le bouton pour ne pas l'imprimer
             
             const opt = {
-                margin: 10, filename: `Intervention_${nomClient}.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowHeight: element.scrollHeight }, 
+                margin: 10, 
+                filename: `Intervention_${nomClient}.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                // C'est ICI la correction : on enlève windowHeight et on ajoute scrollY: 0
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(element).save().then(() => { if(btn) btn.style.display = 'block'; });
+            html2pdf().set(opt).from(element).save().then(() => { 
+                if(btn) btn.style.display = 'block'; // On remet le bouton après téléchargement
+            });
         }
 
         // --- NOUVEAU : FONCTIONS POUR CRÉER UNE MISSION ---

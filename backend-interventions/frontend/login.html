@@ -42,14 +42,14 @@
         /* --- ZONE DU LOGO XXL --- */
         .logo-header {
             width: 100%;
-            margin-bottom: 35px; /* Espace pour faire respirer */
+            margin-bottom: 35px;
             display: flex;
             justify-content: center;
         }
 
         .logo-header img {
-            width: 95%; /* Prend quasiment toute la largeur de la carte */
-            max-width: 320px; /* Taille maximale très grande */
+            width: 95%;
+            max-width: 320px;
             height: auto;
             object-fit: contain;
         }
@@ -57,7 +57,7 @@
         /* --- TEXTES --- */
         h3 { color: #64748b; margin-top: 0; margin-bottom: 30px; font-weight: 500; font-size: 1.05rem; }
         
-        /* --- CHAMPS DE SAISIE MODERNES (avec icônes) --- */
+        /* --- CHAMPS DE SAISIE MODERNES --- */
         .input-field {
             position: relative;
             width: 100%;
@@ -77,7 +77,7 @@
         input { 
             width: 100%; 
             padding: 16px 20px; 
-            padding-left: 50px; /* Place pour l'icône */
+            padding-left: 50px; 
             background-color: #f8fafc; 
             border: 2px solid transparent; 
             border-radius: 12px; 
@@ -120,7 +120,24 @@
             box-shadow: 0 12px 25px rgba(240, 113, 80, 0.4);
         }
 
-        button:active { transform: translateY(0); }
+        /* --- LIEN MOT DE PASSE OUBLIÉ --- */
+        .forgot-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .forgot-link a {
+            color: #ea580c;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-link a:hover {
+            color: #1e3a8a;
+            text-decoration: underline;
+        }
 
         /* --- MESSAGE D'ERREUR --- */
         .error { color: #dc2626; margin-top: 20px; font-weight: 600; display: none; font-size: 0.9rem; }
@@ -148,6 +165,10 @@
         
         <button onclick="seConnecter()" id="btn-login">SE CONNECTER</button>
 
+        <div class="forgot-link">
+            <a href="forgot-password.html">Mot de passe oublié ?</a>
+        </div>
+
         <div id="erreur-msg" class="error">❌ Identifiants incorrects</div>
     </div>
 
@@ -163,7 +184,6 @@
                 erreurMsg.style.display = "block"; return;
             }
 
-            // Animation de chargement
             btn.innerText = "CONNEXION EN COURS..."; 
             btn.style.background = "#64748b"; 
             btn.style.boxShadow = "none";
@@ -178,10 +198,8 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    // Sauvegarde de l'utilisateur
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // --- LA REDIRECTION ULTRA BLINDÉE ---
                     if (data.user.role === 'admin' || data.user.email === 'adil@az-engineering.com' || data.user.email === 'admin@test.com') {
                         window.location.href = 'admin.html';
                     } else {
