@@ -9,12 +9,14 @@ dotenv.config();
 const app = express();
 
 // --- CONFIGURATION DE LA BASE DE DONNÉES ---
+// (Avec l'astuce SSL pour Render et Localhost)
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
+  ssl: process.env.DB_HOST === 'localhost' ? false : { rejectUnauthorized: false }
 });
 
 app.use(express.static('../frontend'));
@@ -30,16 +32,20 @@ const transporter = nodemailer.createTransport({
 });
 
 // ==========================================
-// --- SYSTÈME DE LOGIN ---
+// --- SYSTÈME DE LOGIN (Mise à jour UML) ---
 // ==========================================
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await pool.query("SELECT * FROM utilisateurs WHERE email = $1", [email]);
+    // 1. On utilise "mot_de_passe" et "id_utilisateur"
+    const user = await pool.query("SELECT id_utilisateur AS id, nom, email, mot_de_passe, role FROM utilisateurs WHERE email = $1", [email]);
     
     if (user.rows.length > 0) {
-      const match = await bcrypt.compare(password, user.rows[0].password);
+      // 2. On compare avec la nouvelle colonne "mot_de_passe"
+      const match = await bcrypt.compare(password, user.rows[0].mot_de_passe);
       if (match) {
+        // On supprime le mot de passe de la réponse pour la sécurité
+        delete user.rows[0].mot_de_passe; 
         res.json({ success: true, user: user.rows[0] });
       } else {
         res.status(401).json({ success: false, message: "Identifiants incorrects" });
@@ -54,76 +60,73 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// --- DEMANDE DE MOT DE PASSE OUBLIÉ ---
+// --- GESTION DES TECHNICIENS (Mise à jour UML) ---
 // ==========================================
-app.post('/api/forgot-password', async (req, res) => {
-    const { email } = req.body;
+app.get('/api/techniciens', async (req, res) => {
     try {
-        const user = await pool.query("SELECT * FROM utilisateurs WHERE email = $1", [email]);
-        if (user.rows.length === 0) {
-            return res.status(404).json({ message: "Email introuvable." });
-        }
+        // On récupère uniquement les techniciens avec un alias pour l'ID
+        const result = await pool.query("SELECT id_utilisateur AS id, nom, email FROM utilisateurs WHERE role = 'TECHNICIEN' ORDER BY nom ASC");
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: "Erreur serveur." });
+    }
+});
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const expires = Date.now() + 3600000; 
-
+app.post('/api/techniciens', async (req, res) => {
+    const { nom, email, mot_de_passe } = req.body;
+    try {
+        const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
+        // On insère avec le rôle TECHNICIEN imposé
         await pool.query(
-            "UPDATE utilisateurs SET reset_token = $1, reset_expires = $2 WHERE email = $3",
-            [token, expires, email]
+            "INSERT INTO utilisateurs (nom, email, mot_de_passe, role) VALUES ($1, $2, $3, 'TECHNICIEN')",
+            [nom, email, hashedPassword]
         );
-
-        // LIEN MODIFIÉ POUR FONCTIONNER SUR TELEPHONE (RENDER & LOCAL)
-        const resetLink = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
-        
-        await transporter.sendMail({
-            from: '"AZ Engineering" <azriabdelhak95@gmail.com>',
-            to: email,
-            subject: "AZ Engineering - Réinitialisation de votre mot de passe",
-            html: `<h3>Bonjour,</h3>
-                   <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
-                   <p>Cliquez sur le lien ci-dessous (valable 1h) :</p>
-                   <a href="${resetLink}" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Réinitialiser mon mot de passe</a>`
-        });
-
-        res.json({ message: "Lien envoyé par e-mail !" });
+        res.json({ success: true, message: "Technicien ajouté !" });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Erreur lors de l'envoi." });
+        res.status(500).json({ error: "Erreur lors de l'ajout." });
+    }
+});
+
+// Route PUT ajoutée pour permettre à l'admin de modifier un technicien
+app.put('/api/techniciens/:id', async (req, res) => {
+    const { nom, email, mot_de_passe } = req.body;
+    try {
+        if (mot_de_passe) {
+            const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
+            await pool.query(
+                "UPDATE utilisateurs SET nom = $1, email = $2, mot_de_passe = $3 WHERE id_utilisateur = $4 AND role = 'TECHNICIEN'",
+                [nom, email, hashedPassword, req.params.id]
+            );
+        } else {
+            await pool.query(
+                "UPDATE utilisateurs SET nom = $1, email = $2 WHERE id_utilisateur = $3 AND role = 'TECHNICIEN'",
+                [nom, email, req.params.id]
+            );
+        }
+        res.json({ success: true, message: "Technicien modifié avec succès !" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Erreur lors de la modification." });
+    }
+});
+
+app.delete('/api/techniciens/:id', async (req, res) => {
+    try {
+        await pool.query("DELETE FROM utilisateurs WHERE id_utilisateur = $1 AND role = 'TECHNICIEN'", [req.params.id]);
+        res.json({ success: true, message: "Technicien supprimé" });
+    } catch (err) {
+        res.status(500).json({ error: "Erreur serveur." });
     }
 });
 
 // ==========================================
-// --- VALIDATION DU NOUVEAU MOT DE PASSE ---
+// ⚠️ ATTENTION : ÉTAPE SUIVANTE ⚠️
+// Les routes ci-dessous pour les interventions utilisent encore l'ancienne 
+// base de données. Elles sont laissées ici pour ne pas casser le serveur, 
+// mais elles devront être mises à jour pour correspondre au nouvel UML.
 // ==========================================
-app.post('/api/reset-password', async (req, res) => {
-    const { token, newPassword } = req.body;
-    try {
-        const user = await pool.query(
-            "SELECT * FROM utilisateurs WHERE reset_token = $1 AND reset_expires > $2",
-            [token, Date.now()]
-        );
 
-        if (user.rows.length === 0) {
-            return res.status(400).json({ message: "Lien invalide ou expiré." });
-        }
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        await pool.query(
-            "UPDATE utilisateurs SET password = $1, reset_token = NULL, reset_expires = NULL WHERE id = $2",
-            [hashedPassword, user.rows[0].id]
-        );
-
-        res.json({ message: "Votre mot de passe a été modifié avec succès !" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Erreur serveur." });
-    }
-});
-
-// ==========================================
-// --- GESTION DES INTERVENTIONS ---
-// ==========================================
 app.get('/api/interventions', async (req, res) => {
   try {
       const result = await pool.query(`
@@ -146,7 +149,6 @@ app.post('/api/interventions', async (req, res) => {
       "INSERT INTO interventions (technicien_id, nom_client, adresse, heure_debut, heure_fin, nature_intervention, description, date_intervention, signature_data, photo_data, statut) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10)", 
       [technicien_id, nom_client, adresse, heure_debut || null, heure_fin || null, nature_intervention, description, signature_data, photo_data, statut]
     );
-    // 👇 LA CORRECTION EST ICI : On répond au format JSON !
     res.json({ success: true, message: "Nouvelle intervention créée !" });
   } catch (err) {
     console.error(err);
@@ -154,16 +156,10 @@ app.post('/api/interventions', async (req, res) => {
   }
 });
 
-// ==========================================
-// --- CLÔTURER UNE MISSION (CÔTÉ TECHNICIEN) ---
-// ==========================================
 app.put('/api/interventions/:id', async (req, res) => {
   const missionId = req.params.id;
-  // 👇 REGARDE ICI : On ajoute bien 'photo_data' pour que le serveur l'attrape !
   const { heure_debut, heure_fin, description, signature_data, photo_data, statut } = req.body;
-  
   try {
-    // 👇 Et on ajoute 'photo_data = $5' dans la requête SQL
     await pool.query(
       `UPDATE interventions 
        SET heure_debut = $1, heure_fin = $2, description = $3, signature_data = $4, photo_data = $5, statut = $6 
@@ -177,20 +173,13 @@ app.put('/api/interventions/:id', async (req, res) => {
   }
 });
 
-// ==========================================
-// --- GESTION DES MISSIONS (CÔTÉ TECHNICIEN) ---
-// ==========================================
 app.get('/api/mes-missions/:id', async (req, res) => {
   try {
-      const techId = req.params.id; // L'ID du technicien (ex: 2 pour Yacine)
-      
-      // On cherche uniquement les interventions assignées à ce technicien
+      const techId = req.params.id; 
       const result = await pool.query(
           "SELECT * FROM interventions WHERE technicien_id = $1 ORDER BY date_intervention DESC", 
           [techId]
       );
-      
-      // On renvoie la liste à son téléphone
       res.json({ success: true, missions: result.rows });
   } catch (err) {
       console.error(err);
@@ -199,16 +188,13 @@ app.get('/api/mes-missions/:id', async (req, res) => {
 });
 
 // ==========================================
-// --- GESTION DES UTILISATEURS (ADMIN) ---
+// --- ROUTES MISES DE CÔTÉ (Mot de passe oublié) ---
+// (Elles seront adaptées au nouvel UML plus tard)
 // ==========================================
-app.get('/api/techniciens', async (req, res) => {
-    try {
-        const result = await pool.query("SELECT * FROM utilisateurs ORDER BY id ASC");
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: "Erreur serveur." });
-    }
-});
+/*
+app.post('/api/forgot-password', async (req, res) => { ... });
+app.post('/api/reset-password', async (req, res) => { ... });
+*/
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Serveur AZ Engineering sur le port ${PORT}`));

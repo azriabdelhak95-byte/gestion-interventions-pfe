@@ -198,12 +198,14 @@
                 const data = await res.json();
 
                 if (data.success) {
+                    // On sauvegarde l'utilisateur dans le navigateur
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    if (data.user.role === 'admin' || data.user.email === 'adil@az-engineering.com' || data.user.email === 'admin@test.com') {
-                        window.location.href = 'admin.html';
+                    // 🚦 L'AIGUILLAGE INTELLIGENT (Sécurité par Rôle BDD)
+                    if (data.user.role === 'ADMINISTRATEUR') {
+                        window.location.href = 'admin.html'; // Dashboard Admin
                     } else {
-                        window.location.href = 'index.html'; 
+                        window.location.href = 'index.html'; // App Technicien
                     }
                 } else {
                     erreurMsg.innerText = "❌ Email ou mot de passe incorrect."; 

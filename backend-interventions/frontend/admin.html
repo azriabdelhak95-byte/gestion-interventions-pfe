@@ -340,7 +340,7 @@
                     <td>${t.email}</td>
                     <td>
                         <button onclick="ouvrirMenuModificationTech('${t.id}', '${t.nom}', '${t.email}')" style="background:#eab308; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; margin-right: 5px;">✏️ Modifier</button>
-                        <button onclick="deleteTechnicien(${t.id})" style="background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">🗑️ Retirer</button>
+                        <button onclick="deleteTechnicien('${t.id}')" style="background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">🗑️ Retirer</button>
                     </td>
                 </tr>`;
             });
