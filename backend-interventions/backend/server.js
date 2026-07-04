@@ -9,7 +9,6 @@ dotenv.config();
 const app = express();
 
 // --- CONFIGURATION DE LA BASE DE DONNÉES ---
-// (Avec l'astuce SSL pour Render et Localhost)
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -32,19 +31,16 @@ const transporter = nodemailer.createTransport({
 });
 
 // ==========================================
-// --- SYSTÈME DE LOGIN (Mise à jour UML) ---
+// --- SYSTÈME DE LOGIN ---
 // ==========================================
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    // 1. On utilise "mot_de_passe" et "id_utilisateur"
     const user = await pool.query("SELECT id_utilisateur AS id, nom, email, mot_de_passe, role FROM utilisateurs WHERE email = $1", [email]);
     
     if (user.rows.length > 0) {
-      // 2. On compare avec la nouvelle colonne "mot_de_passe"
       const match = await bcrypt.compare(password, user.rows[0].mot_de_passe);
       if (match) {
-        // On supprime le mot de passe de la réponse pour la sécurité
         delete user.rows[0].mot_de_passe; 
         res.json({ success: true, user: user.rows[0] });
       } else {
@@ -60,11 +56,10 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// --- GESTION DES TECHNICIENS (Mise à jour UML) ---
+// --- GESTION DES TECHNICIENS (CRUD) ---
 // ==========================================
 app.get('/api/techniciens', async (req, res) => {
     try {
-        // On récupère uniquement les techniciens avec un alias pour l'ID
         const result = await pool.query("SELECT id_utilisateur AS id, nom, email FROM utilisateurs WHERE role = 'TECHNICIEN' ORDER BY nom ASC");
         res.json(result.rows);
     } catch (err) {
@@ -76,7 +71,6 @@ app.post('/api/techniciens', async (req, res) => {
     const { nom, email, mot_de_passe } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
-        // On insère avec le rôle TECHNICIEN imposé
         await pool.query(
             "INSERT INTO utilisateurs (nom, email, mot_de_passe, role) VALUES ($1, $2, $3, 'TECHNICIEN')",
             [nom, email, hashedPassword]
@@ -88,7 +82,6 @@ app.post('/api/techniciens', async (req, res) => {
     }
 });
 
-// Route PUT ajoutée pour permettre à l'admin de modifier un technicien
 app.put('/api/techniciens/:id', async (req, res) => {
     const { nom, email, mot_de_passe } = req.body;
     try {
@@ -121,80 +114,110 @@ app.delete('/api/techniciens/:id', async (req, res) => {
 });
 
 // ==========================================
-// ⚠️ ATTENTION : ÉTAPE SUIVANTE ⚠️
-// Les routes ci-dessous pour les interventions utilisent encore l'ancienne 
-// base de données. Elles sont laissées ici pour ne pas casser le serveur, 
-// mais elles devront être mises à jour pour correspondre au nouvel UML.
+// --- GESTION DES MISSIONS ET DISPATCH ---
 // ==========================================
 
+// 1. LIRE LES MISSIONS (Adapté au nouvel UML avec des JOIN)
 app.get('/api/interventions', async (req, res) => {
   try {
       const result = await pool.query(`
-        SELECT i.*, u.nom as tech_nom 
-        FROM interventions i 
-        LEFT JOIN utilisateurs u ON i.technicien_id = u.id 
-        ORDER BY i.date_intervention DESC
+        SELECT 
+            i.id_intervention AS id,
+            i.statut,
+            i.rapport_texte AS description,
+            i.signature_client AS signature_data,
+            i.date_prevue AS date_intervention,
+            u.nom AS tech_nom,
+            c.adresse,
+            c.nom AS nature_intervention,
+            cl.nom_entreprise AS nom_client
+        FROM interventions i
+        LEFT JOIN utilisateurs u ON i.id_technicien = u.id_utilisateur
+        LEFT JOIN chantiers c ON i.id_chantier = c.id_chantier
+        LEFT JOIN contrats_clients cc ON c.id_contrat = cc.id_contrat
+        LEFT JOIN clients cl ON cc.id_client = cl.id_client
+        ORDER BY i.date_prevue DESC NULLS LAST
       `);
       res.json(result.rows);
   } catch (err) {
-      console.error(err);
+      console.error("Erreur GET interventions:", err);
       res.status(500).json({ error: "Erreur lors de la récupération" });
   }
 });
 
+// 2. CRÉER UNE MISSION (Le Dispatch : Transaction SQL)
 app.post('/api/interventions', async (req, res) => {
-  const { technicien_id, nom_client, adresse, heure_debut, heure_fin, nature_intervention, description, signature_data, photo_data, statut } = req.body;
-  try {
-    await pool.query(
-      "INSERT INTO interventions (technicien_id, nom_client, adresse, heure_debut, heure_fin, nature_intervention, description, date_intervention, signature_data, photo_data, statut) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10)", 
-      [technicien_id, nom_client, adresse, heure_debut || null, heure_fin || null, nature_intervention, description, signature_data, photo_data, statut]
-    );
-    res.json({ success: true, message: "Nouvelle intervention créée !" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: "Erreur lors de la création." });
-  }
+    const { technicien_id, nom_client, adresse, nature_intervention, description } = req.body;
+
+    if (!technicien_id || !nom_client || !adresse || !nature_intervention) {
+        return res.status(400).json({ error: "Champs obligatoires manquants." });
+    }
+
+    const client = await pool.connect(); 
+
+    try {
+        await client.query('BEGIN'); // 🚦 DÉBUT DE LA TRANSACTION
+
+        // Étape A : Créer le Client
+        const clientResult = await client.query(
+            `INSERT INTO clients (nom_entreprise) VALUES ($1) RETURNING id_client`,
+            [nom_client]
+        );
+        const id_client = clientResult.rows[0].id_client;
+
+        // Étape B : Créer un Contrat provisoire
+        const numero_contrat = 'CONT-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        const contratResult = await client.query(
+            `INSERT INTO contrats_clients (numero_contrat, description, id_client) 
+             VALUES ($1, $2, $3) RETURNING id_contrat`,
+            [numero_contrat, "Contrat généré automatiquement par le Dispatch", id_client]
+        );
+        const id_contrat = contratResult.rows[0].id_contrat;
+
+        // Étape C : Créer le Chantier
+        const chantierResult = await client.query(
+            `INSERT INTO chantiers (nom, adresse, id_contrat) 
+             VALUES ($1, $2, $3) RETURNING id_chantier`,
+            [nature_intervention, adresse, id_contrat]
+        );
+        const id_chantier = chantierResult.rows[0].id_chantier;
+
+        // Étape D : Créer l'Intervention
+        const interventionResult = await client.query(
+            `INSERT INTO interventions (id_chantier, id_technicien, statut, rapport_texte, date_prevue) 
+             VALUES ($1, $2, 'PLANIFIEE', $3, NOW()) RETURNING *`,
+            [id_chantier, technicien_id, description] 
+        );
+
+        await client.query('COMMIT'); // 🏁 VALIDATION DE LA TRANSACTION
+
+        res.status(201).json({ 
+            success: true, 
+            message: "Mission dispatchée avec succès !"
+        });
+
+    } catch (err) {
+        await client.query('ROLLBACK'); // ⚠️ ERREUR : On annule TOUT
+        console.error("❌ Erreur lors du dispatch :", err);
+        res.status(500).json({ error: "Erreur serveur lors de la création de la mission." });
+    } finally {
+        client.release();
+    }
 });
 
+// ==========================================
+// ⚠️ ÉTAPE SUIVANTE (POUR LE TECHNICIEN)
+// Les routes PUT (modifier) et GET (mes-missions) 
+// seront à refaire quand on passera sur l'application mobile
+// ==========================================
+
 app.put('/api/interventions/:id', async (req, res) => {
-  const missionId = req.params.id;
-  const { heure_debut, heure_fin, description, signature_data, photo_data, statut } = req.body;
-  try {
-    await pool.query(
-      `UPDATE interventions 
-       SET heure_debut = $1, heure_fin = $2, description = $3, signature_data = $4, photo_data = $5, statut = $6 
-       WHERE id = $7`,
-      [heure_debut, heure_fin, description, signature_data, photo_data, statut || 'Terminé', missionId]
-    );
-    res.json({ success: true, message: "Mission terminée avec succès !" });
-  } catch (err) {
-    console.error("Erreur lors de la mise à jour:", err);
-    res.status(500).json({ success: false, message: "Erreur serveur lors de la sauvegarde." });
-  }
+  res.status(501).json({ message: "En cours de maintenance pour le nouvel UML" });
 });
 
 app.get('/api/mes-missions/:id', async (req, res) => {
-  try {
-      const techId = req.params.id; 
-      const result = await pool.query(
-          "SELECT * FROM interventions WHERE technicien_id = $1 ORDER BY date_intervention DESC", 
-          [techId]
-      );
-      res.json({ success: true, missions: result.rows });
-  } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, message: "Erreur lors de la récupération des missions." });
-  }
+  res.status(501).json({ message: "En cours de maintenance pour le nouvel UML" });
 });
-
-// ==========================================
-// --- ROUTES MISES DE CÔTÉ (Mot de passe oublié) ---
-// (Elles seront adaptées au nouvel UML plus tard)
-// ==========================================
-/*
-app.post('/api/forgot-password', async (req, res) => { ... });
-app.post('/api/reset-password', async (req, res) => { ... });
-*/
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Serveur AZ Engineering sur le port ${PORT}`));
