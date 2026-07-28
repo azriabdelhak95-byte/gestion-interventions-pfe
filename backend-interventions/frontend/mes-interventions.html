@@ -122,10 +122,9 @@
             btn.classList.add('active');
         }
 
-        // 3. Récupération des données (OPTIMISÉ POUR TON SERVEUR)
+        // 3. Récupération des données
         async function chargerDonnees() {
             try {
-                // On utilise la nouvelle API ultra-rapide !
                 const res = await fetch(`/api/mes-missions/${user.id}`);
                 const data = await res.json();
                 
@@ -140,7 +139,7 @@
             }
         }
 
-        // NOUVEAU : Fonction pour aller vers la fiche technique avec l'ID de la mission
+        // Fonction pour aller vers la fiche technique avec l'ID de la mission
         function ouvrirMission(idIntervention) {
             window.location.href = `fiche-technique.html?id=${idIntervention}`;
         }
@@ -151,9 +150,12 @@
             const containerHistorique = document.getElementById('liste-historique');
             const valMois = document.getElementById('filter-mois').value;
 
-            // --- SÉPARATION INTELLIGENTE ---
-            const aFaire = mesInterventionsGlobales.filter(r => r.statut !== 'Terminé');
-            let terminees = mesInterventionsGlobales.filter(r => r.statut === 'Terminé');
+            // --- SÉPARATION INTELLIGENTE (CORRIGÉE) ---
+            // On vérifie si le statut contient "termin" (gère Terminé, TERMINEE, terminée...)
+            const isTerminee = (statut) => statut && statut.toLowerCase().includes('termin');
+            
+            const aFaire = mesInterventionsGlobales.filter(r => !isTerminee(r.statut));
+            let terminees = mesInterventionsGlobales.filter(r => isTerminee(r.statut));
 
             // Le filtre calendrier ne s'applique QU'À l'historique !
             if (valMois !== "") {
@@ -194,17 +196,17 @@
             let statutText = r.statut || 'Non spécifié';
 
             if (!r.statut || r.statut.toLowerCase() === 'à faire' || r.statut === '') { badgeClass = 'bg-todo'; statutText = 'À faire'; }
-            else if (r.statut.includes('attente')) { badgeClass = 'bg-warning'; }
-            else if (r.statut.includes('replanifier')) { badgeClass = 'bg-danger'; }
+            else if (r.statut.toLowerCase().includes('attente')) { badgeClass = 'bg-warning'; }
+            else if (r.statut.toLowerCase().includes('replanifier')) { badgeClass = 'bg-danger'; }
 
             // Si c'est à faire, on met un bord orange pour attirer l'attention
             const cardClass = isAFaire ? 'card urgent' : 'card';
             
-            // NOUVEAU : Si la carte est "À Faire", on ajoute le bouton d'action
+            // Si la carte est "À Faire", on ajoute le bouton d'action
             let boutonActionHTML = '';
             if (isAFaire) {
                 boutonActionHTML = `
-                    <button class="btn-open-mission" onclick="ouvrirMission(${r.id})">
+                    <button class="btn-open-mission" onclick="ouvrirMission('${r.id}')">
                         COMPLÉTER LA MISSION <i class="fas fa-arrow-right" style="margin-left: 5px;"></i>
                     </button>
                 `;
@@ -233,8 +235,16 @@
             `;
         }
 
-        // Démarrage
+        // Démarrage initial
         chargerDonnees();
+
+        // NOUVEAU : Auto-rafraîchissement quand on revient sur l'écran
+        window.addEventListener('focus', chargerDonnees);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                chargerDonnees();
+            }
+        });
     </script>
 </body>
 </html>
