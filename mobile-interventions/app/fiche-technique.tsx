@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'; // <-- Ajout de useRef
+import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Image, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,24 +12,67 @@ export default function FicheTechnique() {
   const [heureDebut, setHeureDebut] = useState('');
   const [heureFin, setHeureFin] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [signatureData, setSignatureData] = useState<string | null>(null);
   
   const [modalSignatureVisible, setModalSignatureVisible] = useState(false);
 
-  // --- NOUVEAU : Référence pour contrôler le tableau de signature ---
   const signatureRef = useRef<any>(null);
 
+  useEffect(() => {
+    const fetchMissionData = async () => {
+      try {
+        // ✅ Utilisation de la nouvelle adresse IP locale
+        const response = await fetch(`http://10.143.150.98:3000/api/interventions/${id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
+
+        if (data.success && data.intervention) {
+          const mission = data.intervention;
+          const statut = mission.statut ? mission.statut.toUpperCase() : '';
+          
+          if (statut === 'TERMINEE' || statut === 'TERMINÉ' || statut === 'TERMINÉE') {
+            setIsReadOnly(true);
+            setDescription(mission.description || '');
+            setHeureDebut(mission.heure_debut || '');
+            setHeureFin(mission.heure_fin || '');
+            if (mission.photo_data) setPhotoData(mission.photo_data);
+            if (mission.signature_data) setSignatureData(mission.signature_data);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur chargement mission:", error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchMissionData();
+    } else {
+      setInitialLoading(false);
+    }
+  }, [id]);
+
   const handleValiderSignature = () => {
-    signatureRef.current?.readSignature(); // Demande au canvas de générer l'image
+    signatureRef.current?.readSignature();
   };
 
   const handleEffacerSignature = () => {
-    signatureRef.current?.clearSignature(); // Efface le dessin
+    signatureRef.current?.clearSignature();
   };
 
   const handleHeureChange = (text: string, setHeure: React.Dispatch<React.SetStateAction<string>>) => {
+    if (isReadOnly) return; 
+
     const cleaned = text.replace(/[^0-9]/g, '');
     if (cleaned.length === 0) {
       setHeure('');
@@ -100,11 +143,11 @@ export default function FicheTechnique() {
     setLoading(true);
 
     try {
-      const response = await fetch(`https://alesha-unbadgered-dawn.ngrok-free.dev/api/interventions/${id}`, {
+      // ✅ Utilisation de la nouvelle adresse IP locale pour la mise à jour
+      const response = await fetch(`http://10.143.150.98:3000/api/interventions/${id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           statut: 'TERMINEE',
@@ -132,43 +175,56 @@ export default function FicheTechnique() {
     }
   };
 
+  if (initialLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#1e3a8a" />
+        <Text style={{ marginTop: 10, color: '#1e3a8a', fontWeight: 'bold' }}>Chargement du rapport...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Rapport d'Intervention</Text>
         <Text style={styles.headerSubtitle}>Mission #{id}</Text>
+        {isReadOnly && <Text style={styles.readOnlyBadge}>Lecture Seule - Mission Clôturée</Text>}
       </View>
 
       <View style={styles.formCard}>
         <Text style={styles.label}>Heure de début :</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, isReadOnly && styles.inputDisabled]}
           placeholder="ex: 08:30"
           value={heureDebut}
           onChangeText={(text) => handleHeureChange(text, setHeureDebut)}
           keyboardType="numeric"
           maxLength={5}
+          editable={!isReadOnly} 
         />
 
         <Text style={styles.label}>Heure de fin :</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, isReadOnly && styles.inputDisabled]}
           placeholder="ex: 10:45"
           value={heureFin}
           onChangeText={(text) => handleHeureChange(text, setHeureFin)}
           keyboardType="numeric"
           maxLength={5}
+          editable={!isReadOnly} 
         />
 
         <Text style={styles.label}>Rapport détaillé (Obligatoire) :</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, isReadOnly && styles.inputDisabled]}
           placeholder="Décrivez les actions effectuées sur le chantier..."
           value={description}
           onChangeText={setDescription}
           multiline
           numberOfLines={6}
           textAlignVertical="top"
+          editable={!isReadOnly} 
         />
 
         <View style={styles.previewsContainer}>
@@ -186,19 +242,23 @@ export default function FicheTechnique() {
           )}
         </View>
 
-        <View style={styles.mediaContainer}>
-          <TouchableOpacity style={styles.mediaBtn} onPress={prendrePhoto}>
-            <Text style={styles.mediaBtnText}>📷 Prendre une photo</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.mediaBtn} onPress={() => setModalSignatureVisible(true)}>
-            <Text style={styles.mediaBtnText}>✍️ Faire signer</Text>
-          </TouchableOpacity>
-        </View>
+        {!isReadOnly && (
+          <>
+            <View style={styles.mediaContainer}>
+              <TouchableOpacity style={styles.mediaBtn} onPress={prendrePhoto}>
+                <Text style={styles.mediaBtnText}>📷 Prendre une photo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.mediaBtn} onPress={() => setModalSignatureVisible(true)}>
+                <Text style={styles.mediaBtnText}>✍️ Faire signer</Text>
+              </TouchableOpacity>
+            </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={terminerMission} disabled={loading}>
-          {loading ? <ActivityIndicator color="white" /> : <Text style={styles.submitBtnText}>CLÔTURER LA MISSION</Text>}
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={terminerMission} disabled={loading}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={styles.submitBtnText}>CLÔTURER LA MISSION</Text>}
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <Modal visible={modalSignatureVisible} animationType="slide" transparent={true}>
@@ -211,12 +271,10 @@ export default function FicheTechnique() {
                 ref={signatureRef}
                 onOK={handleSignatureOK}
                 onEmpty={() => Alert.alert("Attention", "La signature est vide.")}
-                // NOUVEAU : On cache la barre noire/grise d'origine du webview
                 webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`} 
               />
             </View>
 
-            {/* NOS PROPRES BOUTONS NATIFS */}
             <View style={styles.customButtonsContainer}>
               <TouchableOpacity style={styles.clearBtn} onPress={handleEffacerSignature}>
                 <Text style={styles.btnTextWhite}>Effacer</Text>
@@ -244,9 +302,15 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#1e3a8a', padding: 20, paddingTop: 50, alignItems: 'center' },
   headerTitle: { color: 'white', fontSize: 22, fontWeight: 'bold' },
   headerSubtitle: { color: '#bfdbfe', fontSize: 14, marginTop: 5 },
+  
+  readOnlyBadge: { backgroundColor: '#f59e0b', color: 'white', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: 12, fontWeight: 'bold', marginTop: 10 },
+  
   formCard: { backgroundColor: 'white', margin: 20, padding: 20, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#475569', marginBottom: 8, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#f8fafc' },
+  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#f8fafc', color: '#334155' },
+  
+  inputDisabled: { backgroundColor: '#e2e8f0', color: '#64748b' },
+  
   textArea: { minHeight: 120 },
   
   mediaContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
@@ -266,7 +330,6 @@ const styles = StyleSheet.create({
   signatureTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e3a8a', marginBottom: 10, textAlign: 'center' },
   signatureBoard: { flex: 1, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, overflow: 'hidden' },
   
-  // Nouveaux styles pour les boutons personnalisés
   customButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
   clearBtn: { flex: 1, backgroundColor: '#f59e0b', padding: 12, borderRadius: 8, alignItems: 'center', marginRight: 5 },
   confirmBtn: { flex: 1, backgroundColor: '#16a34a', padding: 12, borderRadius: 8, alignItems: 'center', marginLeft: 5 },

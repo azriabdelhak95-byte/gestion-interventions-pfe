@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router'; 
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
@@ -8,6 +8,23 @@ export default function Index() {
   const [password, setPassword] = useState('');
   const router = useRouter(); 
 
+  // ✅ Vérification de session (Auto-Login)
+  useEffect(() => {
+    const verifierSession = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('tech_id');
+        if (userId) {
+          // Redirection directe vers le tableau de bord sécurisé si déjà connecté
+          router.replace('/(tabs)/explore');
+        }
+      } catch (error) {
+        console.error("Erreur de lecture du stockage :", error);
+      }
+    };
+
+    verifierSession();
+  }, []); // Le tableau vide [] signifie que ça s'exécute 1 seule fois au lancement
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs.");
@@ -15,12 +32,11 @@ export default function Index() {
     }
 
     try {
-      // ✅ Utilisation du lien Ngrok avec l'en-tête qui désactive l'avertissement
-      const response = await fetch('https://alesha-unbadgered-dawn.ngrok-free.dev/api/login', {
+      // ✅ Utilisation de ta NOUVELLE adresse IP locale
+      const response = await fetch('http://192.168.0.137:3000/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true' // <-- Le pass VIP pour Ngrok
         },
         body: JSON.stringify({
           email: email,
@@ -35,7 +51,7 @@ export default function Index() {
         await AsyncStorage.setItem('tech_nom', data.user.nom);
         
         // Redirection vers l'écran des interventions
-        router.replace('/explore'); 
+        router.replace('/(tabs)/explore'); 
         
       } else {
         Alert.alert("Erreur de connexion", data.message || "Identifiants incorrects");
@@ -67,6 +83,14 @@ export default function Index() {
         onChangeText={setPassword}
         secureTextEntry={true} 
       />
+
+      {/* Bouton Mot de passe oublié */}
+      <TouchableOpacity 
+        style={styles.forgotPasswordContainer} 
+        onPress={() => router.push('/mot-de-passe-oublie')}
+      >
+        <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>SE CONNECTER</Text>
@@ -104,6 +128,16 @@ const styles = StyleSheet.create({
     borderWidth: 1, 
     borderColor: '#cbd5e1',
     fontSize: 16
+  },
+  forgotPasswordContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 20,
+    marginTop: -5,
+  },
+  forgotPasswordText: {
+    color: '#1e3a8a',
+    fontSize: 14,
+    fontWeight: '600',
   },
   button: { 
     backgroundColor: '#16a34a', 

@@ -22,8 +22,8 @@
         .filters-bar input, .filters-bar select { padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'Segoe UI', sans-serif; font-size: 0.95rem; flex: 1; min-width: 200px; outline: none; transition: 0.3s; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
         .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid #f07150; position: relative; }
-        .badge { background: #059669; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; position: absolute; top: 20px; right: 90px; }
-        .btn-pdf { position: absolute; top: 15px; right: 20px; background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .badge { color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; position: absolute; top: 15px; right: 20px; z-index: 10; }
+        .btn-pdf { position: absolute; top: 45px; right: 20px; background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; z-index: 10; }
         .info-row { margin-bottom: 8px; color: #475569; font-size: 0.95rem; }
         .proofs { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
         .proof-img { width: 100%; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; }
@@ -35,11 +35,17 @@
         .tech-table th, .tech-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         .tech-table th { background: #f1f5f9; }
 
-        /* NOUVEAU CSS POUR LE FORMULAIRE DE MISSION */
         .mission-form-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
         .mission-form-group { flex: 1; min-width: 200px; }
         .mission-form-group label { display: block; font-size: 0.9rem; font-weight: bold; color: #475569; margin-bottom: 5px; }
         .mission-form-group input, .mission-form-group select, .mission-form-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'Segoe UI', sans-serif; box-sizing: border-box;}
+    
+        /* Masquer le bouton PDF sur le document PDF final */
+        @media print {
+            .btn-pdf {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -88,9 +94,15 @@
                 </div>
             </div>
             
-            <div class="mission-form-group" style="margin-bottom: 15px;">
-                <label>Description du problème (Pour le technicien)</label>
-                <textarea id="mission_desc" placeholder="Détaillez la panne ou le travail à faire..." style="resize: vertical; min-height: 80px;"></textarea>
+            <div class="mission-form-row">
+                <div class="mission-form-group" style="flex: 2;">
+                    <label>Description du problème (Pour le technicien)</label>
+                    <textarea id="mission_desc" placeholder="Détaillez la panne ou le travail à faire..." style="resize: vertical; min-height: 80px;"></textarea>
+                </div>
+                <div class="mission-form-group" style="flex: 1;">
+                    <label>Cahier des charges / Pièce jointe</label>
+                    <input type="file" id="mission_fichier" accept=".pdf, image/*" style="background: white; cursor: pointer; padding: 25px 10px; height: 80px; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                </div>
             </div>
             
             <button onclick="creerOrdreMission()" style="background: #10b981; color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem;">
@@ -138,40 +150,50 @@
     </div>
 
     <script>
-        // --- 1. SÉCURITÉ PASSE-PARTOUT ---
+        // --- 1. SÉCURITÉ & UI BASIQUE ---
         const user = JSON.parse(localStorage.getItem('user'));
         
-        if(!user) {
+        if(!user || user.role !== 'ADMINISTRATEUR') {
+            localStorage.removeItem('user');
             window.location.href = 'login.html';
         }
 
         function seDeconnecter() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
 
         function switchTab(tabId, btn) {
+            fermerMenuModificationTech(); // Sécurité : on ferme l'édition si on change d'onglet
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             btn.classList.add('active');
         }
 
-        // --- 2. GESTION DES RAPPORTS ET MISSIONS ---
+        // --- 2. GESTION DES RAPPORTS & MISSIONS ---
         let tousLesRapports = [];
 
         async function loadRapports() {
+            const container = document.getElementById('rapports-container');
+            container.innerHTML = '<p style="padding: 20px;">Chargement des rapports...</p>';
+
             try {
                 const res = await fetch('/api/interventions');
+                if(!res.ok) throw new Error("Problème serveur");
+                
                 tousLesRapports = await res.json();
-                initialiserFiltres(tousLesRapports);
-                afficherRapports(tousLesRapports);
+                initialiserFiltresTech(tousLesRapports);
+                appliquerFiltres(); // Affichage initial
             } catch(e) {
-                document.getElementById('rapports-container').innerHTML = "<p style='color:red;'>Erreur serveur.</p>";
+                console.error(e);
+                container.innerHTML = "<p style='color:red; padding: 20px;'>❌ Impossible de charger les rapports depuis le serveur.</p>";
             }
         }
 
-        function initialiserFiltres(rapports) {
+        // Remplit le menu déroulant des filtres avec les techniciens existants dans les rapports
+        function initialiserFiltresTech(rapports) {
             const selectTech = document.getElementById('filter-tech');
             const techSet = new Set();
             rapports.forEach(r => { if(r.tech_nom) techSet.add(r.tech_nom); });
+            
             selectTech.innerHTML = '<option value="">👷‍♂️ Tous les techniciens</option>';
             techSet.forEach(t => selectTech.innerHTML += `<option value="${t}">${t}</option>`);
         }
@@ -182,7 +204,7 @@
             const valTech = document.getElementById('filter-tech').value;
 
             const rapportsFiltres = tousLesRapports.filter(r => {
-                const texteGlobal = `${r.nom_client || ""} ${r.tech_nom || ""} ${r.nature_intervention || ""} ${r.description || ""}`.toLowerCase();
+                const texteGlobal = `${r.nom_client || ""} ${r.tech_nom || ""} ${r.nature_intervention || ""} ${r.id_intervention || ""}`.toLowerCase();
                 const matchRecherche = texteGlobal.includes(valRecherche);
                 
                 let matchMois = true;
@@ -199,75 +221,108 @@
             afficherRapports(rapportsFiltres);
         }
 
+        // 👉 CORRECTION APPLIQUÉE ICI : Utilisation de ton code conditionnel pour les images
         function afficherRapports(rapports) {
             const container = document.getElementById('rapports-container');
             container.innerHTML = '';
+
             if(rapports.length === 0) {
-                container.innerHTML = '<p>Aucun rapport trouvé.</p>'; return;
+                container.innerHTML = '<p style="padding: 20px;">Aucun rapport ou mission trouvé avec ces filtres.</p>'; 
+                return;
             }
 
-            rapports.forEach((r, i) => {
-                const date = new Date(r.date_intervention).toLocaleDateString('fr-FR');
-                const photoHtml = r.photo_data ? `<img src="${r.photo_data}" class="proof-img">` : `<div style="padding:10px; border:1px dashed #cbd5e1; border-radius:6px;">En attente de photo</div>`;
-                const sigHtml = r.signature_data ? `<img src="${r.signature_data}" class="proof-img" style="object-fit:contain;">` : `<div style="padding:10px; border:1px dashed #cbd5e1; border-radius:6px;">En attente de signature</div>`;
-                const cardId = `rapport-${i}`;
-                const horaires = (r.heure_debut && r.heure_fin) ? `${r.heure_debut} à ${r.heure_fin}` : 'À planifier par le technicien';
+            rapports.forEach((intervention, i) => {
+                const dateRaw = new Date(intervention.date_intervention);
+                const dateFr = dateRaw.toLocaleDateString('fr-FR');
                 
-                // Gérer l'affichage du statut
-                let statutColor = r.statut === 'À Faire' ? '#eab308' : (r.statut === 'Terminé' ? '#059669' : '#dc2626');
+                // 🔴 TON CODE INTÉGRÉ ICI 🔴
+                // Exemple de condition pour la signature
+                let affichageSignature = intervention.signature_data 
+                    ? `<img src="${intervention.signature_data}" style="max-width: 100%; max-height: 120px; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;" alt="Signature">` 
+                    : `<div style="padding:20px; border:1px dashed #cbd5e1; border-radius:6px; color: #94a3b8; background: #f8fafc;">En attente de signature</div>`;
+
+                // Exemple de condition pour la photo
+                let affichagePhoto = intervention.photo_data 
+                    ? `<img src="${intervention.photo_data}" style="max-width: 100%; max-height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;" alt="Photo">` 
+                    : `<div style="padding:20px; border:1px dashed #cbd5e1; border-radius:6px; color: #94a3b8; background: #f8fafc;">En attente de photo</div>`;
+                // 🔴 FIN DE L'INTÉGRATION 🔴
+
+                const cardId = `rapport-${intervention.id_intervention || i}`;
+                const horaires = (intervention.heure_debut && intervention.heure_fin) 
+                    ? `${intervention.heure_debut} à ${intervention.heure_fin}` 
+                    : 'Horaires à planifier';
+                
+                // Gestion dynamique de la couleur du statut
+                let statutColor = '#dc2626'; // Rouge par défaut (Annulé / Erreur)
+                if(intervention.statut === 'À Faire') statutColor = '#eab308'; // Jaune
+                if(intervention.statut === 'Terminé') statutColor = '#059669'; // Vert
 
                 container.innerHTML += `
                     <div class="card" id="${cardId}">
-                        <div class="badge" style="background:${statutColor}; right:20px; top:15px;">${r.statut || 'Terminé'}</div>
-                        ${r.statut === 'Terminé' ? `<button class="btn-pdf" style="top: 45px;" onclick="genererPDF('${cardId}', '${r.nom_client || 'Client'}')">📄 PDF</button>` : ''}
+                        <div class="badge" style="background:${statutColor};">${intervention.statut || 'Terminé'}</div>
                         
-                        <h2 style="margin-top: 0; padding-right: 80px;">Client : ${r.nom_client || 'Non renseigné'}</h2>
-                        <div class="info-row"><strong>Technicien assigné :</strong> ${r.tech_nom || 'Inconnu'}</div>
-                        <div class="info-row"><strong>Adresse :</strong> ${r.adresse || 'Non renseignée'}</div>
-                        <div class="info-row"><strong>Date création :</strong> ${date} | <strong>Horaires :</strong> ${horaires}</div>
-                        <div class="info-row"><strong>Nature :</strong> ${r.nature_intervention || '-'}</div>
-                        <div class="info-row" style="background:#f8fafc; padding:10px; margin-top:10px;"><strong>Description :</strong><br>${r.description || '-'}</div>
+                        <!-- Le bouton PDF n'apparaît que si la mission est Terminée -->
+                        ${intervention.statut === 'Terminé' ? `<button class="btn-pdf" onclick="genererPDF('${cardId}', '${intervention.nom_client || 'Client'}')">📄 PDF</button>` : ''}
+                        
+                        <h2 style="margin-top: 0; padding-right: 120px; color: #1e3a8a;">Client : ${intervention.nom_client || 'Non renseigné'}</h2>
+                        <div class="info-row"><strong>Technicien :</strong> ${intervention.tech_nom || 'Inconnu'}</div>
+                        <div class="info-row"><strong>Adresse chantier :</strong> ${intervention.adresse || 'Non renseignée'}</div>
+                        <div class="info-row"><strong>Planification :</strong> ${dateFr} | <strong>Horaires :</strong> ${horaires}</div>
+                        <div class="info-row"><strong>Nature :</strong> ${intervention.nature_intervention || '-'}</div>
+                        
+                        <div class="info-row" style="background:#f1f5f9; padding:15px; margin-top:15px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                            <strong>Description / Instructions :</strong><br>
+                            <span style="white-space: pre-wrap;">${intervention.description || '-'}</span>
+                        </div>
+                        
+                        <!-- 🔴 UTILISATION DES VARIABLES DANS TON HTML GÉNÉRÉ 🔴 -->
                         <div class="proofs">
-                            <div class="proof-box">PHOTO<br>${photoHtml}</div>
-                            <div class="proof-box">SIGNATURE<br>${sigHtml}</div>
+                            <div class="proof-box">
+                                <h6>PHOTO (CHANTIER)</h6>
+                                ${affichagePhoto}
+                            </div>
+                            <div class="proof-box">
+                                <h6>SIGNATURE (CLIENT)</h6>
+                                ${affichageSignature}
+                            </div>
                         </div>
                     </div>`;
             });
         }
 
-        // --- CORRECTION DU PDF ---
+        // --- GÉNÉRATION DU PDF PROFESSIONNEL (CORRIGÉ) ---
         function genererPDF(elementId, nomClient) {
             const element = document.getElementById(elementId);
-            const btn = element.querySelector('.btn-pdf'); 
-            if(btn) btn.style.display = 'none'; // On cache le bouton pour ne pas l'imprimer
             
             const opt = {
                 margin: 10, 
-                filename: `Intervention_${nomClient}.pdf`, 
+                filename: `Rapport_AZ_${nomClient}_${Date.now()}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                // C'est ICI la correction : on enlève windowHeight et on ajoute scrollY: 0
+                // scrollY: 0 pour corriger le décalage, scale: 2 pour la netteté
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(element).save().then(() => { 
-                if(btn) btn.style.display = 'block'; // On remet le bouton après téléchargement
-            });
+            // Lancement de html2pdf
+            // Note: Le CSS @media print dans le <style> s'occupe de cacher le bouton PDF
+            html2pdf().set(opt).from(element).save();
         }
 
-        // --- NOUVEAU : FONCTIONS POUR CRÉER UNE MISSION ---
+        // --- GESTION DU CRÉATION DE MISSION (DISPATCH) ---
         
-        async function chargerTechniciensPourMission() {
+        async function chargerTechniciensPourMenuMission() {
             try {
                 const res = await fetch('/api/techniciens');
                 const techniciens = await res.json();
                 const select = document.getElementById('mission_tech_id');
-                select.innerHTML = '<option value="">-- Choisissez un technicien --</option>';
+                
+                select.innerHTML = '<option value="">-- Sélectionnez un technicien --</option>';
                 techniciens.forEach(tech => {
                     select.innerHTML += `<option value="${tech.id}">${tech.nom}</option>`;
                 });
             } catch (err) {
-                console.error("Erreur chargement tech mission :", err);
+                console.error("Erreur chargement tech pour dispatch :", err);
+                document.getElementById('mission_tech_id').innerHTML = '<option value="">⚠️ Erreur chargement</option>';
             }
         }
 
@@ -277,24 +332,43 @@
             const adresse = document.getElementById('mission_adresse').value.trim();
             const nature_intervention = document.getElementById('mission_nature').value.trim();
             const description = document.getElementById('mission_desc').value.trim();
+            const fichierInput = document.getElementById('mission_fichier');
 
             if (!technicien_id || !nom_client || !adresse || !nature_intervention) {
-                alert("⚠️ Veuillez remplir tous les champs obligatoires (Technicien, Client, Adresse, Nature).");
+                alert("⚠️ Les champs Technicien, Client, Adresse et Nature sont obligatoires.");
                 return;
             }
 
-            // Données envoyées au serveur avec les champs vides que le tech remplira plus tard
+            let cahier_charges_data = "";
+            if (fichierInput && fichierInput.files.length > 0) {
+                const file = fichierInput.files[0];
+                try {
+                    cahier_charges_data = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = error => reject(error);
+                        reader.readAsDataURL(file);
+                    });
+                } catch (e) {
+                    alert("❌ Erreur lors de la lecture du fichier joint.");
+                    return;
+                }
+            }
+
+            // Données initiales pour une mission "À Faire"
             const missionData = {
                 technicien_id: technicien_id,
                 nom_client: nom_client,
                 adresse: adresse,
                 nature_intervention: nature_intervention,
                 description: description,
-                heure_debut: "",      
-                heure_fin: "",        
-                statut: "À Faire",    
-                photo_data: "",       
-                signature_data: ""    
+                url_cahier_charges: cahier_charges_data,
+                // Champs vides que le tech remplira sur mobile
+                heure_debut: "", 
+                heure_fin: "", 
+                statut: "À Faire", 
+                photo_data: "", 
+                signature_data: "" 
             };
 
             try {
@@ -306,82 +380,113 @@
 
                 if (res.ok) {
                     alert("✅ Ordre de mission créé et envoyé au technicien !");
-                    // On vide le formulaire
+                    // Reset du formulaire
                     document.getElementById('mission_tech_id').value = '';
                     document.getElementById('mission_client').value = '';
                     document.getElementById('mission_adresse').value = '';
                     document.getElementById('mission_nature').value = '';
                     document.getElementById('mission_desc').value = '';
+                    if(document.getElementById('mission_fichier')) document.getElementById('mission_fichier').value = '';
                     
-                    // On recharge la liste pour voir la mission apparaître
+                    // Recharger la liste pour voir la nouvelle mission
                     loadRapports(); 
                 } else {
                     const error = await res.json();
-                    alert("❌ Erreur Serveur : " + (error.error || "Impossible de créer."));
+                    alert("❌ Échec de la création : " + (error.error || "Erreur inconnue."));
                 }
             } catch (err) {
-                alert("❌ Erreur de connexion au serveur.");
+                alert("❌ Erreur réseau lors de la création de la mission.");
             }
         }
 
 
-        // --- 3. GESTION DES TECHNICIENS (CRUD COMPLET) ---
+        // --- GESTION DES TECHNICIENS (CRUD COMPLET) ---
         
         async function loadTechniciens() {
-            const res = await fetch('/api/techniciens'); 
-            const techniciens = await res.json(); 
-            const tbody = document.getElementById('tech-list'); 
-            tbody.innerHTML = '';
-            
-            techniciens.forEach(t => {
-                tbody.innerHTML += `<tr>
-                    <td>#${t.id}</td>
-                    <td><strong>${t.nom}</strong></td>
-                    <td>${t.email}</td>
-                    <td>
-                        <button onclick="ouvrirMenuModificationTech('${t.id}', '${t.nom}', '${t.email}')" style="background:#eab308; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; margin-right: 5px;">✏️ Modifier</button>
-                        <button onclick="deleteTechnicien('${t.id}')" style="background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">🗑️ Retirer</button>
-                    </td>
-                </tr>`;
-            });
+            try {
+                const res = await fetch('/api/techniciens'); 
+                const techniciens = await res.json(); 
+                const tbody = document.getElementById('tech-list'); 
+                
+                tbody.innerHTML = '';
+                if(techniciens.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">Aucun technicien dans l\'équipe.</td></tr>';
+                    return;
+                }
+                
+                techniciens.forEach(t => {
+                    tbody.innerHTML += `<tr>
+                        <td>#${t.id}</td>
+                        <td><strong>${t.nom}</strong></td>
+                        <td>${t.email}</td>
+                        <td>
+                            <button onclick="ouvrirMenuModificationTech('${t.id}', '${t.nom}', '${t.email}')" style="background:#eab308; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-right: 5px; font-weight:bold;">✏️ Modifier</button>
+                            <button onclick="deleteTechnicien('${t.id}')" style="background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🗑️ Supprimer</button>
+                        </td>
+                    </tr>`;
+                });
+            } catch(e) {
+                console.error(e);
+                document.getElementById('tech-list').innerHTML = '<tr><td colspan="4" style="color:red; text-align:center;">Erreur chargement.</td></tr>';
+            }
         }
 
         async function addTechnicien() {
-            const nom = document.getElementById('new_nom').value; 
-            const email = document.getElementById('new_email').value; 
-            const mot_de_passe = document.getElementById('new_pass').value; 
+            const nom = document.getElementById('new_nom').value.trim(); 
+            const email = document.getElementById('new_email').value.trim(); 
+            const mot_de_passe = document.getElementById('new_pass').value.trim(); 
             
-            if(!nom || !email || !mot_de_passe) return alert("Remplissez tout !");
+            if(!nom || !email || !mot_de_passe) return alert("⚠️ Veuillez remplir le Nom, l'Email et le Mot de passe.");
             
-            await fetch('/api/techniciens', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ nom, email, mot_de_passe }) 
-            }); 
-            
-            alert("Technicien ajouté !"); 
-            document.getElementById('new_nom').value = "";
-            document.getElementById('new_email').value = "";
-            document.getElementById('new_pass').value = "";
-            
-            loadTechniciens();
+            try {
+                const res = await fetch('/api/techniciens', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ nom, email, mot_de_passe }) 
+                }); 
+                
+                if(res.ok) {
+                    alert("✅ Nouveau technicien ajouté à l'équipe !"); 
+                    // Reset
+                    document.getElementById('new_nom').value = "";
+                    document.getElementById('new_email').value = "";
+                    document.getElementById('new_pass').value = "";
+                    
+                    // Recharger les listes
+                    loadTechniciens();
+                    chargerTechniciensPourMenuMission(); // Mettre à jour le dispatch
+                } else {
+                    const err = await res.json();
+                    alert("❌ Erreur : " + (err.error || "Impossible d'ajouter."));
+                }
+            } catch(e) { alert("❌ Erreur réseau."); }
         }
 
         async function deleteTechnicien(id) {
-            if(!confirm("Êtes-vous sûr de vouloir retirer ce technicien ?")) return; 
-            await fetch(`/api/techniciens/${id}`, { method: 'DELETE' }); 
-            loadTechniciens();
+            if(!confirm("⚠️ Êtes-vous sûr de vouloir supprimer ce technicien de l'équipe ? Cette action est irréversible.")) return; 
+            
+            try {
+                const res = await fetch(`/api/techniciens/${id}`, { method: 'DELETE' }); 
+                if(res.ok) {
+                    alert("✅ Technicien supprimé.");
+                    loadTechniciens();
+                    chargerTechniciensPourMenuMission(); // Mettre à jour le dispatch
+                } else {
+                    alert("❌ Impossible de supprimer ce technicien (il est peut-être lié à des rapports).");
+                }
+            } catch(e) { alert("❌ Erreur réseau."); }
         }
 
-        // --- NOUVELLES FONCTIONS DE MODIFICATION ---
+        // --- FONCTIONS D'ÉDITION DES TECHNICIENS ---
 
         function ouvrirMenuModificationTech(id, nom, email) {
             document.getElementById('edit-tech-form').style.display = 'block';
             document.getElementById('edit_id').value = id;
             document.getElementById('edit_nom').value = nom;
             document.getElementById('edit_email').value = email;
-            document.getElementById('edit_mdp').value = ''; 
+            document.getElementById('edit_mdp').value = ''; // On vide le champ MDP
             
+            // Scroll doux vers le formulaire
             document.getElementById('edit-tech-form').scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -391,36 +496,44 @@
 
         async function envoyerLaModificationTech() {
             const id = document.getElementById('edit_id').value;
-            const nouveauNom = document.getElementById('edit_nom').value;
-            const nouvelEmail = document.getElementById('edit_email').value;
-            const nouveauMdp = document.getElementById('edit_mdp').value; 
+            const nouveauNom = document.getElementById('edit_nom').value.trim();
+            const nouvelEmail = document.getElementById('edit_email').value.trim();
+            const nouveauMdp = document.getElementById('edit_mdp').value.trim(); 
 
-            if(!nouveauNom || !nouvelEmail) return alert("Le nom et l'email sont obligatoires.");
+            if(!nouveauNom || !nouvelEmail) return alert("⚠️ Le nom et l'email sont obligatoires.");
+
+            // On prépare les données (le MDP n'est envoyé que s'il est rempli)
+            const updateData = { nom: nouveauNom, email: nouvelEmail };
+            if(nouveauMdp !== "") updateData.mot_de_passe = nouveauMdp;
 
             try {
                 const res = await fetch(`/api/techniciens/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nom: nouveauNom, email: nouvelEmail, mot_de_passe: nouveauMdp })
+                    body: JSON.stringify(updateData)
                 });
 
                 if(res.ok) {
-                    alert("Les informations du technicien ont été modifiées !");
+                    alert("✅ Informations du technicien mises à jour !");
                     fermerMenuModificationTech();
-                    document.getElementById('edit_mdp').value = ''; 
                     loadTechniciens();
+                    chargerTechniciensPourMenuMission(); // Mettre à jour le dispatch
                 } else {
-                    alert("Erreur lors de la modification.");
+                    const err = await res.json();
+                    alert("❌ Échec de la modification : " + (err.error || "Erreur inconnue."));
                 }
             } catch (e) {
-                alert("Erreur serveur lors de la communication.");
+                alert("❌ Erreur réseau lors de la modification.");
             }
         }
         
-        // Initialisation de la page
-        chargerTechniciensPourMission(); // 👈 On charge le menu déroulant
+        // --- CHARGEMENT INITIAL ---
+        // 1. Remplir le menu déroulant du Dispatch
+        chargerTechniciensPourMenuMission(); 
+        // 2. Charger les Rapports (Onglet par défaut)
         loadRapports(); 
-        loadTechniciens();npm
+        // 3. Charger la liste des Techniciens (en tâche de fond)
+        loadTechniciens();
     </script>
 </body>
 </html>
