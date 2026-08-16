@@ -6,8 +6,11 @@ import * as ImagePicker from 'expo-image-picker';
 import SignatureScreen from 'react-native-signature-canvas';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system'; // NOUVEAU
-import * as Sharing from 'expo-sharing'; // NOUVEAU
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+
+// 👉 IMPORTATION DU FICHIER CONFIG
+import { API_URL } from '../../config';
 
 export default function MissionDetail() {
   const { id } = useLocalSearchParams();
@@ -34,17 +37,30 @@ export default function MissionDetail() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const resMission = await fetch(`http://192.168.0.137:3000/api/missions/${id}`);
+        const token = await AsyncStorage.getItem('token'); // 👉 ON RÉCUPÈRE LE BADGE
+        if (!token) {
+          Alert.alert("Erreur", "Session expirée.");
+          router.replace('/');
+          return;
+        }
+
+        // 👉 ON MONTRE LE BADGE (Authorization)
+        const resMission = await fetch(`${API_URL}/missions/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!resMission.ok) throw new Error("Erreur serveur mission");
         const dataMission = await resMission.json();
         if (dataMission.success) {
           setMission(dataMission.mission);
         }
 
-        const resMateriel = await fetch(`http://192.168.0.137:3000/api/materiels`);
+        // 👉 ON MONTRE AUSSI LE BADGE POUR L'INVENTAIRE
+        const resMateriel = await fetch(`${API_URL}/materiel`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (resMateriel.ok) {
           const dataMateriel = await resMateriel.json();
-          setMaterielsDisponibles(dataMateriel);
+          setMaterielsDisponibles(dataMateriel.materiels || []);
         }
       } catch (error) {
         Alert.alert("Erreur", "Impossible de charger les données.");
@@ -89,7 +105,6 @@ export default function MissionDetail() {
     setMaterielsUtilises(nouvelleListe);
   };
 
-  // --- NOUVELLE LOGIQUE HORS-LIGNE ---
   const handleCloturer = async () => {
     if (!rapport.trim()) return Alert.alert("Attention", "Veuillez écrire un bref rapport.");
 
@@ -99,8 +114,6 @@ export default function MissionDetail() {
         text: "Oui, clôturer", 
         onPress: async () => {
           setIsUpdating(true);
-          
-          // On prépare les données à envoyer ou à sauvegarder
           const dataToSave = {
             id_mission: id,
             statut: 'Terminé', 
@@ -111,14 +124,17 @@ export default function MissionDetail() {
           };
 
           try {
-            // 1. On vérifie si on a du réseau
             const netState = await NetInfo.fetch();
-            
             if (netState.isConnected) {
-              // --- EN LIGNE (On envoie au serveur) ---
-              const response = await fetch(`http://192.168.0.137:3000/api/missions/${id}/cloturer`, {
+              const token = await AsyncStorage.getItem('token'); // 👉 ON RÉCUPÈRE LE BADGE
+
+              // 👉 ON ENVOIE LE BADGE
+              const response = await fetch(`${API_URL}/missions/${id}/cloturer`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
                 body: JSON.stringify(dataToSave)
               });
 
@@ -129,15 +145,9 @@ export default function MissionDetail() {
                 Alert.alert("Erreur", "Impossible de mettre à jour la base de données.");
               }
             } else {
-              // --- HORS LIGNE (On sauvegarde dans le téléphone) ---
-              // Récupérer les données déjà en attente
               const existingData = await AsyncStorage.getItem('@missions_en_attente');
               let missionsEnAttente = existingData ? JSON.parse(existingData) : [];
-              
-              // Ajouter la nouvelle mission
               missionsEnAttente.push(dataToSave);
-              
-              // Sauvegarder dans le téléphone
               await AsyncStorage.setItem('@missions_en_attente', JSON.stringify(missionsEnAttente));
               
               Alert.alert(
@@ -146,7 +156,6 @@ export default function MissionDetail() {
               );
               router.back();
             }
-
           } catch (error) {
             Alert.alert("Erreur", "Problème lors de la clôture.");
           } finally {
@@ -163,41 +172,33 @@ export default function MissionDetail() {
     if (url) Linking.openURL(url).catch(() => Alert.alert("Erreur", "Impossible d'ouvrir le GPS."));
   };
 
-  // --- NOUVELLE FONCTION POUR OUVRIR LE DOCUMENT BASE64 ---
   const ouvrirDocument = async () => {
     try {
       const base64Data = mission.url_cahier_charges;
-      if (!base64Data) return;
-      
-      // Si ce n'est pas du Base64 (ex: un vrai lien http), on l'ouvre normalement
       if (!base64Data.includes('base64,')) {
-        Linking.openURL(base64Data).catch(() => 
-          Alert.alert("Erreur", "Impossible d'ouvrir le lien.")
-        );
+        Linking.openURL(base64Data);
         return;
       }
-
-      // On sépare l'en-tête des données pures
       const parts = base64Data.split(';base64,');
-      // On devine l'extension (PDF, PNG ou JPG par défaut)
       const ext = parts[0].includes('pdf') ? 'pdf' : parts[0].includes('png') ? 'png' : 'jpg';
       const base64String = parts[1];
-      
-      // On crée un fichier temporaire dans le cache du téléphone
       const fileUri = FileSystem.cacheDirectory + `Cahier_des_charges.${ext}`;
-      
-      // On écrit le fichier
-      await FileSystem.writeAsStringAsync(fileUri, base64String, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      
-      // On ouvre la fenêtre de partage/lecture du téléphone
+      await FileSystem.writeAsStringAsync(fileUri, base64String, { encoding: 'base64' });
       await Sharing.shareAsync(fileUri);
-
     } catch (error) {
-      console.error(error);
       Alert.alert("Erreur", "Impossible de lire et d'ouvrir ce fichier.");
     }
+  };
+
+  const declarerTravailSupplementaire = () => {
+    router.push({
+      pathname: '/nouvelle-intervention', 
+      params: { 
+        idMissionParente: id,
+        nomClientParam: mission.nom_client,
+        adresseParam: mission.adresse
+      }
+    });
   };
 
   if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#16a34a" /></View>;
@@ -209,7 +210,6 @@ export default function MissionDetail() {
   );
 
   const estTermine = mission.statut?.toLowerCase().includes('termin');
-
   const styleCSSSignature = `.m-signature-pad { box-shadow: none; border: none; margin: 0px; } .m-signature-pad--body { border: none; } .m-signature-pad--footer { display: none; }`;
 
   return (
@@ -240,7 +240,6 @@ export default function MissionDetail() {
           <FontAwesome5 name="external-link-alt" size={14} color="#0369a1" style={{ alignSelf: 'center', marginLeft: 10 }} />
         </TouchableOpacity>
 
-        {/* --- BOUTON CAHIER DES CHARGES MIS À JOUR --- */}
         {mission.url_cahier_charges && (
           <TouchableOpacity 
             style={[styles.row, { backgroundColor: '#f0f9ff', padding: 12, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: '#bae6fd' }]} 
@@ -256,18 +255,21 @@ export default function MissionDetail() {
           </TouchableOpacity>
         )}
 
+        {!estTermine && (
+          <TouchableOpacity style={styles.btnSupplementaire} onPress={declarerTravailSupplementaire} activeOpacity={0.8}>
+            <FontAwesome5 name="exclamation-triangle" size={16} color="white" />
+            <Text style={styles.btnSupplementaireText}>Travail supplémentaire (Hors devis)</Text>
+          </TouchableOpacity>
+        )}
+
       </View>
 
-      {/* SECTION DYNAMIQUE : LECTURE SEULE OU ÉDITION */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
           {estTermine ? "Rapport de clôture" : "Rapport de fin d'intervention"}
         </Text>
 
         {estTermine ? (
-          /* ==========================================
-             --- MODE LECTURE SEULE (HISTORIQUE) ---
-             ========================================== */
           <View>
             <Text style={styles.label}>Description du travail :</Text>
             <Text style={[styles.value, styles.readOnlyBox]}>{mission.description || "Aucun rapport saisi."}</Text>
@@ -287,9 +289,6 @@ export default function MissionDetail() {
             )}
           </View>
         ) : (
-          /* ==========================================
-             --- MODE ÉDITION (NOUVELLE MISSION) ---
-             ========================================== */
           <View>
             <TextInput
               style={styles.input} placeholder="Décrivez le travail effectué..." multiline numberOfLines={4} value={rapport} onChangeText={setRapport}
@@ -364,12 +363,16 @@ export default function MissionDetail() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Choisir un équipement</Text>
             <ScrollView style={styles.matList}>
-              {materielsDisponibles.map(mat => (
-                <TouchableOpacity key={mat.id_materiel} style={[styles.matOption, selectedMaterielId === mat.id_materiel && styles.matOptionSelected]} onPress={() => setSelectedMaterielId(mat.id_materiel)}>
-                  <Text style={[styles.matOptionText, selectedMaterielId === mat.id_materiel && { color: '#0369a1', fontWeight: 'bold' }]}>{mat.nom_materiel}</Text>
-                  <Text style={styles.matOptionStock}>Stock: {mat.quantite_stock}</Text>
-                </TouchableOpacity>
-              ))}
+              {materielsDisponibles.length > 0 ? (
+                materielsDisponibles.map(mat => (
+                  <TouchableOpacity key={mat.id_materiel} style={[styles.matOption, selectedMaterielId === mat.id_materiel && styles.matOptionSelected]} onPress={() => setSelectedMaterielId(mat.id_materiel)}>
+                    <Text style={[styles.matOptionText, selectedMaterielId === mat.id_materiel && { color: '#0369a1', fontWeight: 'bold' }]}>{mat.nom_materiel}</Text>
+                    <Text style={styles.matOptionStock}>Stock: {mat.quantite_stock}</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={{ textAlign: 'center', color: '#64748b', padding: 20 }}>Aucun équipement disponible en stock.</Text>
+              )}
             </ScrollView>
             {selectedMaterielId && (
               <View style={styles.qtyContainer}>
@@ -384,7 +387,6 @@ export default function MissionDetail() {
           </View>
         </View>
       </Modal>
-
     </ScrollView>
   );
 }
@@ -407,6 +409,9 @@ const styles = StyleSheet.create({
   
   readOnlyBox: { backgroundColor: '#f1f5f9', padding: 12, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' },
   
+  btnSupplementaire: { backgroundColor: '#f97316', padding: 12, borderRadius: 8, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  btnSupplementaireText: { color: 'white', fontWeight: 'bold', marginLeft: 10, fontSize: 14 },
+
   input: { backgroundColor: '#f1f5f9', borderRadius: 8, padding: 12, fontSize: 15, textAlignVertical: 'top', minHeight: 80, marginBottom: 15, borderWidth: 1, borderColor: '#cbd5e1' },
   photoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e0f2fe', padding: 15, borderRadius: 8, borderWidth: 1, borderColor: '#bae6fd', marginBottom: 15 },
   photoButtonText: { color: '#1e3a8a', fontWeight: 'bold', fontSize: 14 },

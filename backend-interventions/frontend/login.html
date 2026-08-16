@@ -198,8 +198,9 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    // On sauvegarde l'utilisateur dans le navigateur
+                    // 👉 NOUVEAU : On sauvegarde l'utilisateur ET le token (Badge)
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('token', data.token); 
                     
                     // 🚦 L'AIGUILLAGE INTELLIGENT (Sécurité par Rôle BDD)
                     if (data.user.role === 'ADMINISTRATEUR') {

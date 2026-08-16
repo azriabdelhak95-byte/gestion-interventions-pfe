@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router'; 
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
+
+// 👉 1. IMPORTATION DU FICHIER CONFIG
+import { API_URL } from '../config';
 
 export default function Index() {
   const [email, setEmail] = useState('');
@@ -13,8 +16,10 @@ export default function Index() {
     const verifierSession = async () => {
       try {
         const userId = await AsyncStorage.getItem('tech_id');
-        if (userId) {
-          // Redirection directe vers le tableau de bord sécurisé si déjà connecté
+        const token = await AsyncStorage.getItem('token'); // 👉 NOUVEAU : On cherche le badge
+        
+        // 👉 On s'assure que l'utilisateur ET le badge sont présents
+        if (userId && token) {
           router.replace('/(tabs)/explore');
         }
       } catch (error) {
@@ -23,7 +28,7 @@ export default function Index() {
     };
 
     verifierSession();
-  }, []); // Le tableau vide [] signifie que ça s'exécute 1 seule fois au lancement
+  }, []); 
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -32,8 +37,8 @@ export default function Index() {
     }
 
     try {
-      // ✅ Utilisation de ta NOUVELLE adresse IP locale
-      const response = await fetch('http://192.168.0.137:3000/api/login', {
+      // 👉 2. UTILISATION DE LA VARIABLE API_URL ICI !
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,8 +54,8 @@ export default function Index() {
       if (response.ok) {
         await AsyncStorage.setItem('tech_id', data.user.id.toString());
         await AsyncStorage.setItem('tech_nom', data.user.nom);
+        await AsyncStorage.setItem('token', data.token); // 👉 NOUVEAU : On sauvegarde le Badge dans le téléphone
         
-        // Redirection vers l'écran des interventions
         router.replace('/(tabs)/explore'); 
         
       } else {
@@ -64,6 +69,13 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
+      {/* --- LE LOGO EST MAINTENANT APPELÉ "logo.png" --- */}
+      <Image 
+        source={require('../assets/logo.png')} 
+        style={styles.logo}
+        resizeMode="contain"
+      />
+
       <Text style={styles.title}>AZ Engineering</Text>
       <Text style={styles.subtitle}>Espace Technicien</Text>
 
@@ -84,7 +96,6 @@ export default function Index() {
         secureTextEntry={true} 
       />
 
-      {/* Bouton Mot de passe oublié */}
       <TouchableOpacity 
         style={styles.forgotPasswordContainer} 
         onPress={() => router.push('/mot-de-passe-oublie')}
@@ -105,6 +116,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     padding: 20, 
     backgroundColor: '#f4f6f8' 
+  },
+  logo: {
+    width: 150,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 10,
   },
   title: { 
     fontSize: 32, 

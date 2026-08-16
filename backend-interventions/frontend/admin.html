@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AZ-Engineering | Administration</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #e2e8f0; margin: 0; padding: 20px; }
@@ -13,11 +14,15 @@
         .logo-img-small { width: auto; height: 50px; display: block; }
         .header h1 { margin: 0; font-size: 1.5rem; }
         .btn-logout { background: transparent; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; padding: 10px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .tab-btn { background: #cbd5e1; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; color: #334155; font-size: 1rem; transition: 0.3s; }
         .tab-btn.active { background: #f07150; color: white; }
+        
         .section { display: none; }
         .section.active { display: block; }
+        
+        /* Styles Rapports & Missions */
         .filters-bar { display: flex; gap: 15px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-wrap: wrap; align-items: center; }
         .filters-bar input, .filters-bar select { padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'Segoe UI', sans-serif; font-size: 0.95rem; flex: 1; min-width: 200px; outline: none; transition: 0.3s; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
@@ -28,6 +33,8 @@
         .proofs { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
         .proof-img { width: 100%; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; }
         .proof-box { flex: 1; text-align: center; font-size: 0.8rem; color: #64748b; font-weight: bold; }
+        
+        /* Styles Techniciens */
         .tech-container { background: white; padding: 20px; border-radius: 8px; }
         .tech-form { display: flex; gap: 15px; margin-bottom: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap: wrap; }
         .tech-form input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1; min-width: 200px; }
@@ -40,11 +47,23 @@
         .mission-form-group label { display: block; font-size: 0.9rem; font-weight: bold; color: #475569; margin-bottom: 5px; }
         .mission-form-group input, .mission-form-group select, .mission-form-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'Segoe UI', sans-serif; box-sizing: border-box;}
     
-        /* Masquer le bouton PDF sur le document PDF final */
+        /* Styles Inventaire */
+        .inventaire-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .table-inventaire { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden; }
+        .table-inventaire th, .table-inventaire td { padding: 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .table-inventaire th { background-color: #1e3a8a; color: white; }
+        .ligne-alerte { background-color: #fee2e2; }
+        .badge-danger { background-color: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-success { background-color: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        
+        .btn-primary { background-color: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;}
+        .btn-success { background-color: #22c55e; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;}
+        .btn-action { background-color: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;}
+        .form-ajout { display: flex; gap: 15px; margin-bottom: 20px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #cbd5e1; flex-wrap: wrap;}
+        .form-ajout input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1; min-width: 200px; }
+
         @media print {
-            .btn-pdf {
-                display: none !important;
-            }
+            .btn-pdf { display: none !important; }
         }
     </style>
 </head>
@@ -52,7 +71,7 @@
 
     <div class="header">
         <div class="header-left">
-            <img src="logo.png" alt="AZ-Engineering Logo" class="logo-img-small">
+            <img src="logo.png" alt="AZ-Engineering Logo" class="logo-img-small" onerror="this.style.display='none'">
             <h1>Administration - Supervision des Chantiers</h1>
         </div>
         <button onclick="seDeconnecter()" class="btn-logout">Déconnexion</button>
@@ -61,10 +80,12 @@
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('rapports', this)">📄 Tableaux des Rapports & Missions</button>
         <button class="tab-btn" onclick="switchTab('techniciens', this)">👷‍♂️ Équipe & Techniciens</button>
+        <button class="tab-btn" onclick="switchTab('inventaire', this)">📦 Inventaire & Stocks</button>
+        <button class="tab-btn" onclick="switchTab('statistiques', this)">📊 Statistiques & KPI</button>
     </div>
 
+    <!-- SECTION RAPPORTS -->
     <div id="rapports" class="section active">
-        
         <div class="card" style="border: 2px solid #1e3a8a; background-color: #f8fafc; margin-bottom: 25px; border-top: none;">
             <div style="background: #1e3a8a; margin: -20px -20px 20px -20px; padding: 15px 20px; border-radius: 8px 8px 0 0;">
                 <h3 style="color: white; margin: 0;">🛠️ Créer un Ordre de Mission (Dispatch)</h3>
@@ -73,9 +94,7 @@
             <div class="mission-form-row">
                 <div class="mission-form-group">
                     <label>Assigner à un Technicien</label>
-                    <select id="mission_tech_id">
-                        <option value="">Chargement...</option>
-                    </select>
+                    <select id="mission_tech_id"><option value="">Chargement...</option></select>
                 </div>
                 <div class="mission-form-group">
                     <label>Nom du Client / Entreprise</label>
@@ -119,6 +138,7 @@
         <div class="grid" id="rapports-container"><p style="padding: 20px;">Chargement des rapports en cours...</p></div>
     </div>
 
+    <!-- SECTION TECHNICIENS -->
     <div id="techniciens" class="section">
         <div class="tech-container">
             <h2 style="color: #1e3a8a; margin-top: 0;">Ajouter un nouveau technicien</h2>
@@ -149,23 +169,88 @@
         </div>
     </div>
 
+    <!-- SECTION INVENTAIRE -->
+    <div id="inventaire" class="section">
+        <div class="tech-container">
+            <div class="inventaire-header">
+                <h2 style="color: #1e3a8a; margin: 0;">📦 Gestion des Stocks et Matériel</h2>
+                <button class="btn-primary" onclick="toggleFormulaireAjout()" id="btn-toggle-ajout">+ Nouveau Produit</button>
+            </div>
+
+            <form id="form-ajout-materiel" class="form-ajout" style="display: none;" onsubmit="handleAjouterProduit(event)">
+                <input type="text" id="nouveau_nom_mat" placeholder="Nom du matériel (ex: Jarretière Optique)" required>
+                <input type="number" id="nouveau_qte_mat" placeholder="Quantité initiale" required>
+                <input type="number" id="nouveau_seuil_mat" placeholder="Seuil d'alerte" required>
+                <button type="submit" class="btn-success">Enregistrer</button>
+            </form>
+
+            <table class="table-inventaire">
+                <thead>
+                    <tr><th>Nom du Matériel</th><th>En Stock</th><th>Seuil d'alerte</th><th>Statut</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="inventaire-list">
+                    <tr><td colspan="5" style="text-align: center; padding: 20px;">Chargement des stocks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SECTION STATISTIQUES -->
+    <div id="statistiques" class="section">
+        <div class="tech-container">
+            <h2 style="color: #1e3a8a; margin-top: 0; margin-bottom: 20px;">📊 Supervision et Performance</h2>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 30px; justify-content: center;">
+                
+                <!-- Graphique 1 : Missions -->
+                <div style="width: 400px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                    <h3 style="text-align: center; color: #475569; margin-bottom: 15px;">Statut des Interventions</h3>
+                    <canvas id="missionsChart"></canvas>
+                </div>
+
+                <!-- Graphique 2 : Inventaire (NOUVEAU) -->
+                <div style="width: 550px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                    <h3 style="text-align: center; color: #475569; margin-bottom: 15px;">État des Stocks (Alertes)</h3>
+                    <canvas id="inventaireChart"></canvas>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- 1. SÉCURITÉ & UI BASIQUE ---
         const user = JSON.parse(localStorage.getItem('user'));
+        const token = localStorage.getItem('token'); // 👉 ON RÉCUPÈRE LE BADGE
         
-        if(!user || user.role !== 'ADMINISTRATEUR') {
+        // 👉 ON VÉRIFIE AUSSI SI LE BADGE EXISTE
+        if(!user || user.role !== 'ADMINISTRATEUR' || !token) {
             localStorage.removeItem('user');
+            localStorage.removeItem('token');
             window.location.href = 'login.html';
         }
 
-        function seDeconnecter() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+        // 👉 DÉCONNEXION : ON DÉTRUIT LE BADGE
+        function seDeconnecter() { 
+            localStorage.removeItem('user'); 
+            localStorage.removeItem('token');
+            window.location.href = 'login.html'; 
+        }
 
         function switchTab(tabId, btn) {
-            fermerMenuModificationTech(); // Sécurité : on ferme l'édition si on change d'onglet
+            fermerMenuModificationTech();
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             btn.classList.add('active');
+
+            if(tabId === 'inventaire') {
+                loadMateriels();
+            }
+            if(tabId === 'statistiques') {
+                genererGraphiqueMissions();
+                genererGraphiqueInventaire(); // On appelle aussi le 2ème graphique !
+            }
         }
 
         // --- 2. GESTION DES RAPPORTS & MISSIONS ---
@@ -174,26 +259,27 @@
         async function loadRapports() {
             const container = document.getElementById('rapports-container');
             container.innerHTML = '<p style="padding: 20px;">Chargement des rapports...</p>';
-
             try {
-                const res = await fetch('/api/interventions');
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch('/api/interventions', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 if(!res.ok) throw new Error("Problème serveur");
-                
                 tousLesRapports = await res.json();
                 initialiserFiltresTech(tousLesRapports);
-                appliquerFiltres(); // Affichage initial
+                appliquerFiltres();
+                
+                genererGraphiqueMissions();
             } catch(e) {
                 console.error(e);
                 container.innerHTML = "<p style='color:red; padding: 20px;'>❌ Impossible de charger les rapports depuis le serveur.</p>";
             }
         }
 
-        // Remplit le menu déroulant des filtres avec les techniciens existants dans les rapports
         function initialiserFiltresTech(rapports) {
             const selectTech = document.getElementById('filter-tech');
             const techSet = new Set();
             rapports.forEach(r => { if(r.tech_nom) techSet.add(r.tech_nom); });
-            
             selectTech.innerHTML = '<option value="">👷‍♂️ Tous les techniciens</option>';
             techSet.forEach(t => selectTech.innerHTML += `<option value="${t}">${t}</option>`);
         }
@@ -206,7 +292,6 @@
             const rapportsFiltres = tousLesRapports.filter(r => {
                 const texteGlobal = `${r.nom_client || ""} ${r.tech_nom || ""} ${r.nature_intervention || ""} ${r.id_intervention || ""}`.toLowerCase();
                 const matchRecherche = texteGlobal.includes(valRecherche);
-                
                 let matchMois = true;
                 if (valMois !== "") {
                     const d = new Date(r.date_intervention);
@@ -214,56 +299,89 @@
                     const year = d.getFullYear();
                     matchMois = (`${year}-${month}` === valMois);
                 }
-
                 const matchTech = (valTech === "" || (r.tech_nom || "") === valTech);
                 return matchRecherche && matchMois && matchTech;
             });
             afficherRapports(rapportsFiltres);
         }
 
-        // 👉 CORRECTION APPLIQUÉE ICI : Utilisation de ton code conditionnel pour les images
         function afficherRapports(rapports) {
             const container = document.getElementById('rapports-container');
             container.innerHTML = '';
-
             if(rapports.length === 0) {
                 container.innerHTML = '<p style="padding: 20px;">Aucun rapport ou mission trouvé avec ces filtres.</p>'; 
                 return;
             }
 
-            rapports.forEach((intervention, i) => {
+            const missionsGroupees = {};
+            rapports.forEach(r => {
+                const dateCourte = r.date_intervention ? r.date_intervention.split('T')[0] : 'nodate';
+                const cle = `${r.nom_client}_${r.adresse}_${dateCourte}`;
+                
+                if (!missionsGroupees[cle]) {
+                    missionsGroupees[cle] = [];
+                }
+                missionsGroupees[cle].push(r);
+            });
+
+            let indexGlobal = 0;
+            Object.values(missionsGroupees).forEach(groupe => {
+                
+                groupe.sort((a, b) => a.id - b.id);
+                
+                const intervention = groupe[0]; // La mission de base
+                const extras = groupe.slice(1); // Tous les extras rattachés
+
                 const dateRaw = new Date(intervention.date_intervention);
                 const dateFr = dateRaw.toLocaleDateString('fr-FR');
                 
-                // 🔴 TON CODE INTÉGRÉ ICI 🔴
-                // Exemple de condition pour la signature
                 let affichageSignature = intervention.signature_data 
                     ? `<img src="${intervention.signature_data}" style="max-width: 100%; max-height: 120px; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;" alt="Signature">` 
                     : `<div style="padding:20px; border:1px dashed #cbd5e1; border-radius:6px; color: #94a3b8; background: #f8fafc;">En attente de signature</div>`;
 
-                // Exemple de condition pour la photo
                 let affichagePhoto = intervention.photo_data 
                     ? `<img src="${intervention.photo_data}" style="max-width: 100%; max-height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;" alt="Photo">` 
                     : `<div style="padding:20px; border:1px dashed #cbd5e1; border-radius:6px; color: #94a3b8; background: #f8fafc;">En attente de photo</div>`;
-                // 🔴 FIN DE L'INTÉGRATION 🔴
 
-                const cardId = `rapport-${intervention.id_intervention || i}`;
+                const cardId = `rapport-${intervention.id_intervention || indexGlobal}`;
                 const horaires = (intervention.heure_debut && intervention.heure_fin) 
                     ? `${intervention.heure_debut} à ${intervention.heure_fin}` 
                     : 'Horaires à planifier';
                 
-                // Gestion dynamique de la couleur du statut
-                let statutColor = '#dc2626'; // Rouge par défaut (Annulé / Erreur)
-                if(intervention.statut === 'À Faire') statutColor = '#eab308'; // Jaune
-                if(intervention.statut === 'Terminé') statutColor = '#059669'; // Vert
+                let statutColor = '#dc2626';
+                if(intervention.statut === 'À Faire') statutColor = '#eab308';
+                if(intervention.statut === 'Terminé') statutColor = '#059669';
+
+                let htmlExtras = '';
+                if (extras.length > 0) {
+                    extras.forEach((extra, idx) => {
+                        let photoExtra = extra.photo_data 
+                            ? `<img src="${extra.photo_data}" class="proof-img">` 
+                            : `<div style="padding:20px; border:1px dashed #ea580c; border-radius:6px; color: #ea580c; background: #fff7ed;">Pas de photo</div>`;
+                        
+                        let signExtra = extra.signature_data 
+                            ? `<img src="${extra.signature_data}" class="proof-img" style="object-fit: contain;">` 
+                            : `<div style="padding:20px; border:1px dashed #ea580c; border-radius:6px; color: #ea580c; background: #fff7ed;">Pas de signature</div>`;
+
+                        htmlExtras += `
+                            <div style="margin-top: 15px; padding: 15px; background-color: #fff7ed; border: 2px dashed #ea580c; border-radius: 8px;">
+                                <h4 style="color: #ea580c; margin-top: 0; margin-bottom: 10px;">⚠️ EXTRA HORS-DEVIS #${idx + 1}</h4>
+                                <div class="info-row"><strong>Nature de l'extra :</strong> ${extra.nature_intervention || '-'}</div>
+                                <div class="info-row"><strong>Description :</strong> ${extra.description || '-'}</div>
+                                
+                                <div class="proofs" style="border-top: none; padding-top: 10px;">
+                                    <div class="proof-box"><h6 style="color: #ea580c;">PHOTO (EXTRA)</h6>${photoExtra}</div>
+                                    <div class="proof-box"><h6 style="color: #ea580c;">SIGNATURE (EXTRA)</h6>${signExtra}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
 
                 container.innerHTML += `
                     <div class="card" id="${cardId}">
                         <div class="badge" style="background:${statutColor};">${intervention.statut || 'Terminé'}</div>
-                        
-                        <!-- Le bouton PDF n'apparaît que si la mission est Terminée -->
                         ${intervention.statut === 'Terminé' ? `<button class="btn-pdf" onclick="genererPDF('${cardId}', '${intervention.nom_client || 'Client'}')">📄 PDF</button>` : ''}
-                        
                         <h2 style="margin-top: 0; padding-right: 120px; color: #1e3a8a;">Client : ${intervention.nom_client || 'Non renseigné'}</h2>
                         <div class="info-row"><strong>Technicien :</strong> ${intervention.tech_nom || 'Inconnu'}</div>
                         <div class="info-row"><strong>Adresse chantier :</strong> ${intervention.adresse || 'Non renseignée'}</div>
@@ -275,53 +393,40 @@
                             <span style="white-space: pre-wrap;">${intervention.description || '-'}</span>
                         </div>
                         
-                        <!-- 🔴 UTILISATION DES VARIABLES DANS TON HTML GÉNÉRÉ 🔴 -->
                         <div class="proofs">
-                            <div class="proof-box">
-                                <h6>PHOTO (CHANTIER)</h6>
-                                ${affichagePhoto}
-                            </div>
-                            <div class="proof-box">
-                                <h6>SIGNATURE (CLIENT)</h6>
-                                ${affichageSignature}
-                            </div>
+                            <div class="proof-box"><h6>PHOTO (CHANTIER)</h6>${affichagePhoto}</div>
+                            <div class="proof-box"><h6>SIGNATURE (CLIENT)</h6>${affichageSignature}</div>
                         </div>
+
+                        ${htmlExtras}
                     </div>`;
+                
+                indexGlobal++;
             });
         }
 
-        // --- GÉNÉRATION DU PDF PROFESSIONNEL (CORRIGÉ) ---
         function genererPDF(elementId, nomClient) {
             const element = document.getElementById(elementId);
-            
             const opt = {
-                margin: 10, 
-                filename: `Rapport_AZ_${nomClient}_${Date.now()}.pdf`, 
+                margin: 10, filename: `Rapport_AZ_${nomClient}_${Date.now()}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                // scrollY: 0 pour corriger le décalage, scale: 2 pour la netteté
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-
-            // Lancement de html2pdf
-            // Note: Le CSS @media print dans le <style> s'occupe de cacher le bouton PDF
             html2pdf().set(opt).from(element).save();
         }
 
-        // --- GESTION DU CRÉATION DE MISSION (DISPATCH) ---
-        
         async function chargerTechniciensPourMenuMission() {
             try {
-                const res = await fetch('/api/techniciens');
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch('/api/techniciens', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 const techniciens = await res.json();
                 const select = document.getElementById('mission_tech_id');
-                
                 select.innerHTML = '<option value="">-- Sélectionnez un technicien --</option>';
-                techniciens.forEach(tech => {
-                    select.innerHTML += `<option value="${tech.id}">${tech.nom}</option>`;
-                });
+                techniciens.forEach(tech => select.innerHTML += `<option value="${tech.id}">${tech.nom}</option>`);
             } catch (err) {
-                console.error("Erreur chargement tech pour dispatch :", err);
                 document.getElementById('mission_tech_id').innerHTML = '<option value="">⚠️ Erreur chargement</option>';
             }
         }
@@ -334,10 +439,7 @@
             const description = document.getElementById('mission_desc').value.trim();
             const fichierInput = document.getElementById('mission_fichier');
 
-            if (!technicien_id || !nom_client || !adresse || !nature_intervention) {
-                alert("⚠️ Les champs Technicien, Client, Adresse et Nature sont obligatoires.");
-                return;
-            }
+            if (!technicien_id || !nom_client || !adresse || !nature_intervention) return alert("⚠️ Champs obligatoires manquants.");
 
             let cahier_charges_data = "";
             if (fichierInput && fichierInput.files.length > 0) {
@@ -349,190 +451,294 @@
                         reader.onerror = error => reject(error);
                         reader.readAsDataURL(file);
                     });
-                } catch (e) {
-                    alert("❌ Erreur lors de la lecture du fichier joint.");
-                    return;
-                }
+                } catch (e) { return alert("❌ Erreur lecture fichier."); }
             }
 
-            // Données initiales pour une mission "À Faire"
             const missionData = {
-                technicien_id: technicien_id,
-                nom_client: nom_client,
-                adresse: adresse,
-                nature_intervention: nature_intervention,
-                description: description,
-                url_cahier_charges: cahier_charges_data,
-                // Champs vides que le tech remplira sur mobile
-                heure_debut: "", 
-                heure_fin: "", 
-                statut: "À Faire", 
-                photo_data: "", 
-                signature_data: "" 
+                technicien_id, nom_client, adresse, nature_intervention, description,
+                url_cahier_charges: cahier_charges_data, heure_debut: "", heure_fin: "", 
+                statut: "À Faire", photo_data: "", signature_data: "" 
             };
 
             try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
                 const res = await fetch('/api/interventions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
                     body: JSON.stringify(missionData)
                 });
 
                 if (res.ok) {
-                    alert("✅ Ordre de mission créé et envoyé au technicien !");
-                    // Reset du formulaire
+                    alert("✅ Ordre de mission créé !");
                     document.getElementById('mission_tech_id').value = '';
                     document.getElementById('mission_client').value = '';
                     document.getElementById('mission_adresse').value = '';
                     document.getElementById('mission_nature').value = '';
                     document.getElementById('mission_desc').value = '';
                     if(document.getElementById('mission_fichier')) document.getElementById('mission_fichier').value = '';
-                    
-                    // Recharger la liste pour voir la nouvelle mission
                     loadRapports(); 
                 } else {
                     const error = await res.json();
-                    alert("❌ Échec de la création : " + (error.error || "Erreur inconnue."));
+                    alert("❌ Échec : " + (error.error || "Erreur inconnue."));
                 }
-            } catch (err) {
-                alert("❌ Erreur réseau lors de la création de la mission.");
-            }
+            } catch (err) { alert("❌ Erreur réseau."); }
         }
 
-
-        // --- GESTION DES TECHNICIENS (CRUD COMPLET) ---
-        
+        // --- GESTION DES TECHNICIENS ---
         async function loadTechniciens() {
             try {
-                const res = await fetch('/api/techniciens'); 
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch('/api/techniciens', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }); 
                 const techniciens = await res.json(); 
                 const tbody = document.getElementById('tech-list'); 
-                
                 tbody.innerHTML = '';
-                if(techniciens.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">Aucun technicien dans l\'équipe.</td></tr>';
-                    return;
-                }
-                
+                if(techniciens.length === 0) return tbody.innerHTML = '<tr><td colspan="4">Aucun technicien.</td></tr>';
                 techniciens.forEach(t => {
-                    tbody.innerHTML += `<tr>
-                        <td>#${t.id}</td>
-                        <td><strong>${t.nom}</strong></td>
-                        <td>${t.email}</td>
+                    tbody.innerHTML += `<tr><td>#${t.id}</td><td><strong>${t.nom}</strong></td><td>${t.email}</td>
                         <td>
-                            <button onclick="ouvrirMenuModificationTech('${t.id}', '${t.nom}', '${t.email}')" style="background:#eab308; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-right: 5px; font-weight:bold;">✏️ Modifier</button>
-                            <button onclick="deleteTechnicien('${t.id}')" style="background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🗑️ Supprimer</button>
+                            <button onclick="ouvrirMenuModificationTech('${t.id}', '${t.nom}', '${t.email}')" style="background:#eab308; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">✏️</button>
+                            <button onclick="deleteTechnicien('${t.id}')" style="background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">🗑️</button>
                         </td>
                     </tr>`;
                 });
-            } catch(e) {
-                console.error(e);
-                document.getElementById('tech-list').innerHTML = '<tr><td colspan="4" style="color:red; text-align:center;">Erreur chargement.</td></tr>';
-            }
+            } catch(e) {}
         }
 
         async function addTechnicien() {
             const nom = document.getElementById('new_nom').value.trim(); 
             const email = document.getElementById('new_email').value.trim(); 
             const mot_de_passe = document.getElementById('new_pass').value.trim(); 
-            
-            if(!nom || !email || !mot_de_passe) return alert("⚠️ Veuillez remplir le Nom, l'Email et le Mot de passe.");
-            
+            if(!nom || !email || !mot_de_passe) return alert("⚠️ Veuillez remplir tous les champs.");
             try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
                 const res = await fetch('/api/techniciens', { 
                     method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }, 
                     body: JSON.stringify({ nom, email, mot_de_passe }) 
                 }); 
-                
                 if(res.ok) {
-                    alert("✅ Nouveau technicien ajouté à l'équipe !"); 
-                    // Reset
+                    alert("✅ Nouveau technicien ajouté !"); 
                     document.getElementById('new_nom').value = "";
                     document.getElementById('new_email').value = "";
                     document.getElementById('new_pass').value = "";
-                    
-                    // Recharger les listes
-                    loadTechniciens();
-                    chargerTechniciensPourMenuMission(); // Mettre à jour le dispatch
-                } else {
-                    const err = await res.json();
-                    alert("❌ Erreur : " + (err.error || "Impossible d'ajouter."));
-                }
-            } catch(e) { alert("❌ Erreur réseau."); }
+                    loadTechniciens(); chargerTechniciensPourMenuMission();
+                } else { alert("❌ Impossible d'ajouter."); }
+            } catch(e) {}
         }
 
         async function deleteTechnicien(id) {
-            if(!confirm("⚠️ Êtes-vous sûr de vouloir supprimer ce technicien de l'équipe ? Cette action est irréversible.")) return; 
-            
+            if(!confirm("⚠️ Êtes-vous sûr ?")) return; 
             try {
-                const res = await fetch(`/api/techniciens/${id}`, { method: 'DELETE' }); 
-                if(res.ok) {
-                    alert("✅ Technicien supprimé.");
-                    loadTechniciens();
-                    chargerTechniciensPourMenuMission(); // Mettre à jour le dispatch
-                } else {
-                    alert("❌ Impossible de supprimer ce technicien (il est peut-être lié à des rapports).");
-                }
-            } catch(e) { alert("❌ Erreur réseau."); }
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch(`/api/techniciens/${id}`, { 
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }); 
+                if(res.ok) { alert("✅ Supprimé."); loadTechniciens(); chargerTechniciensPourMenuMission(); } 
+                else { alert("❌ Impossible de supprimer."); }
+            } catch(e) {}
         }
-
-        // --- FONCTIONS D'ÉDITION DES TECHNICIENS ---
 
         function ouvrirMenuModificationTech(id, nom, email) {
             document.getElementById('edit-tech-form').style.display = 'block';
             document.getElementById('edit_id').value = id;
             document.getElementById('edit_nom').value = nom;
             document.getElementById('edit_email').value = email;
-            document.getElementById('edit_mdp').value = ''; // On vide le champ MDP
-            
-            // Scroll doux vers le formulaire
-            document.getElementById('edit-tech-form').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('edit_mdp').value = '';
         }
 
-        function fermerMenuModificationTech() {
-            document.getElementById('edit-tech-form').style.display = 'none';
-        }
+        function fermerMenuModificationTech() { document.getElementById('edit-tech-form').style.display = 'none'; }
 
         async function envoyerLaModificationTech() {
             const id = document.getElementById('edit_id').value;
-            const nouveauNom = document.getElementById('edit_nom').value.trim();
-            const nouvelEmail = document.getElementById('edit_email').value.trim();
-            const nouveauMdp = document.getElementById('edit_mdp').value.trim(); 
-
-            if(!nouveauNom || !nouvelEmail) return alert("⚠️ Le nom et l'email sont obligatoires.");
-
-            // On prépare les données (le MDP n'est envoyé que s'il est rempli)
-            const updateData = { nom: nouveauNom, email: nouvelEmail };
-            if(nouveauMdp !== "") updateData.mot_de_passe = nouveauMdp;
+            const nom = document.getElementById('edit_nom').value.trim();
+            const email = document.getElementById('edit_email').value.trim();
+            const mdp = document.getElementById('edit_mdp').value.trim(); 
+            if(!nom || !email) return alert("⚠️ Nom et email obligatoires.");
+            
+            const updateData = { nom, email };
+            if(mdp !== "") updateData.mot_de_passe = mdp;
 
             try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
                 const res = await fetch(`/api/techniciens/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'PUT', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify(updateData)
                 });
-
                 if(res.ok) {
-                    alert("✅ Informations du technicien mises à jour !");
-                    fermerMenuModificationTech();
-                    loadTechniciens();
-                    chargerTechniciensPourMenuMission(); // Mettre à jour le dispatch
-                } else {
-                    const err = await res.json();
-                    alert("❌ Échec de la modification : " + (err.error || "Erreur inconnue."));
-                }
-            } catch (e) {
-                alert("❌ Erreur réseau lors de la modification.");
+                    alert("✅ Mise à jour réussie !");
+                    fermerMenuModificationTech(); loadTechniciens(); chargerTechniciensPourMenuMission(); 
+                } else { alert("❌ Échec modification."); }
+            } catch (e) {}
+        }
+
+        // --- 3. GESTION DE L'INVENTAIRE ---
+        function toggleFormulaireAjout() {
+            const form = document.getElementById('form-ajout-materiel');
+            const btn = document.getElementById('btn-toggle-ajout');
+            if (form.style.display === 'none' || form.style.display === '') {
+                form.style.display = 'flex'; btn.innerText = 'Annuler';
+            } else {
+                form.style.display = 'none'; btn.innerText = '+ Nouveau Produit';
             }
         }
-        
+
+        async function loadMateriels() {
+            const tbody = document.getElementById('inventaire-list');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Chargement...</td></tr>';
+            try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch('/api/materiel', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if(!res.ok) throw new Error("Erreur");
+                const data = await res.json();
+                const materiels = data.materiels || data; 
+
+                tbody.innerHTML = '';
+                if(!materiels || materiels.length === 0) return tbody.innerHTML = '<tr><td colspan="5">Aucun matériel.</td></tr>';
+
+                materiels.forEach(item => {
+                    const estEnAlerte = item.quantite_stock <= item.seuil_alerte;
+                    const classeLigne = estEnAlerte ? 'ligne-alerte' : '';
+                    const badgeStatut = estEnAlerte 
+                        ? '<span class="badge-danger">⚠️ Stock Bas</span>' 
+                        : '<span class="badge-success">✅ OK</span>';
+
+                    tbody.innerHTML += `
+                        <tr class="${classeLigne}">
+                            <td><strong>${item.nom_materiel}</strong></td>
+                            <td>${item.quantite_stock}</td>
+                            <td>${item.seuil_alerte}</td>
+                            <td>${badgeStatut}</td>
+                            <td><button class="btn-action" onclick="handleReassort('${item.id_materiel || item.id}')">🔄 Réapprovisionner</button></td>
+                        </tr>
+                    `;
+                });
+            } catch (err) { tbody.innerHTML = '<tr><td colspan="5" style="color:red;">Erreur.</td></tr>'; }
+        }
+
+        async function handleAjouterProduit(event) {
+            event.preventDefault(); 
+            const nom_materiel = document.getElementById('nouveau_nom_mat').value.trim();
+            const quantite_stock = parseInt(document.getElementById('nouveau_qte_mat').value);
+            const seuil_alerte = parseInt(document.getElementById('nouveau_seuil_mat').value);
+
+            try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch('/api/materiel', {
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ nom_materiel, quantite_stock, seuil_alerte })
+                });
+                if (res.ok) {
+                    alert("✅ Produit ajouté !");
+                    document.getElementById('form-ajout-materiel').reset();
+                    toggleFormulaireAjout(); loadMateriels(); 
+                } else { alert("❌ Erreur."); }
+            } catch (err) {}
+        }
+
+        async function handleReassort(id) {
+            const ajout = window.prompt("Combien d'unités ajouter au stock ?");
+            if (!ajout || isNaN(ajout) || Number(ajout) <= 0) return;
+            try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch(`/api/materiel/${id}/reassort`, {
+                    method: 'PUT', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ quantite_ajoutee: Number(ajout) })
+                });
+                if (res.ok) { loadMateriels(); } else { alert("❌ Erreur."); }
+            } catch (err) {}
+        }
+
+        // --- 4. GESTION DES STATISTIQUES (CHART.JS) ---
+        let missionsChartInstance = null;
+        let inventaireChartInstance = null;
+
+        function genererGraphiqueMissions() {
+            let nbTerminees = 0, nbEnAttente = 0;
+            tousLesRapports.forEach(r => { if(r.statut === 'Terminé') nbTerminees++; else nbEnAttente++; });
+
+            const ctx = document.getElementById('missionsChart').getContext('2d');
+            if (missionsChartInstance) missionsChartInstance.destroy();
+
+            missionsChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Missions Terminées', 'Missions En Attente'],
+                    datasets: [{
+                        data: [nbTerminees, nbEnAttente],
+                        backgroundColor: ['#10b981', '#f59e0b'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        async function genererGraphiqueInventaire() {
+            try {
+                // 👉 ON MONTRE LE BADGE (Authorization)
+                const res = await fetch('/api/materiel', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if(!res.ok) return;
+                const data = await res.json();
+                const materiels = data.materiels || data;
+
+                if(!materiels || materiels.length === 0) return;
+
+                const nomsProduits = materiels.map(m => m.nom_materiel);
+                const quantites = materiels.map(m => m.quantite_stock);
+                
+                const couleursBarres = materiels.map(m => (m.quantite_stock <= m.seuil_alerte) ? '#ef4444' : '#3b82f6');
+
+                const ctx = document.getElementById('inventaireChart').getContext('2d');
+                if (inventaireChartInstance) inventaireChartInstance.destroy();
+
+                inventaireChartInstance = new Chart(ctx, {
+                    type: 'bar', 
+                    data: {
+                        labels: nomsProduits,
+                        datasets: [{
+                            label: 'Quantité en stock',
+                            data: quantites,
+                            backgroundColor: couleursBarres, 
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } }, 
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            } catch(e) { console.error("Erreur Graphique Inventaire", e); }
+        }
+
         // --- CHARGEMENT INITIAL ---
-        // 1. Remplir le menu déroulant du Dispatch
         chargerTechniciensPourMenuMission(); 
-        // 2. Charger les Rapports (Onglet par défaut)
         loadRapports(); 
-        // 3. Charger la liste des Techniciens (en tâche de fond)
         loadTechniciens();
     </script>
 </body>

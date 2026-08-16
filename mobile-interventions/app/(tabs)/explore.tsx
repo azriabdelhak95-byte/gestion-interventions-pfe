@@ -4,6 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 
+// 👉 IMPORTATION DU FICHIER CONFIG
+import { API_URL } from '../../config';
+
 // --- Données pour le calendrier en français ---
 const jours = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
 const joursComplets = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -46,11 +49,17 @@ export default function Explore() {
       setLoading(true);
       const userId = await AsyncStorage.getItem('tech_id');
       const nom = await AsyncStorage.getItem('tech_nom');
+      const token = await AsyncStorage.getItem('token'); // 👉 ON RÉCUPÈRE LE BADGE
       
       if (nom) setTechNom(nom);
-      if (!userId) return;
+      if (!userId || !token) return; // Sécurité
 
-      const response = await fetch(`http://192.168.0.137:3000/api/mes-missions/${userId}`);
+      // 👉 UTILISATION DE L'API_URL ICI ET DU BADGE
+      const response = await fetch(`${API_URL}/mes-missions/${userId}`, {
+          headers: {
+              'Authorization': `Bearer ${token}` // 👉 ON MONTRE LE BADGE
+          }
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -90,7 +99,9 @@ export default function Explore() {
     try {
       setIsSyncing(true);
       const data = await AsyncStorage.getItem('@missions_en_attente');
-      if (!data) return;
+      const token = await AsyncStorage.getItem('token'); // 👉 ON RÉCUPÈRE LE BADGE
+
+      if (!data || !token) return;
       
       let missionsEnAttente = JSON.parse(data);
       if (missionsEnAttente.length === 0) return;
@@ -101,9 +112,13 @@ export default function Explore() {
       // On boucle sur chaque mission sauvegardée hors-ligne
       for (let mission of missionsEnAttente) {
         try {
-          const response = await fetch(`http://192.168.0.137:3000/api/missions/${mission.id_mission}/cloturer`, {
+          // 👉 UTILISATION DE L'API_URL ICI ET DU BADGE POUR LA SYNCHRONISATION
+          const response = await fetch(`${API_URL}/missions/${mission.id_mission}/cloturer`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // 👉 ON MONTRE LE BADGE
+            },
             body: JSON.stringify(mission)
           });
 
@@ -147,6 +162,7 @@ export default function Explore() {
           onPress: async () => {
             await AsyncStorage.removeItem('tech_id');
             await AsyncStorage.removeItem('tech_nom');
+            await AsyncStorage.removeItem('token'); // 👉 ON DÉTRUIT LE BADGE EN SORTANT
             router.replace('/'); 
           },
           style: "destructive"
