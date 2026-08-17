@@ -108,6 +108,15 @@ export default function MissionDetail() {
   const handleCloturer = async () => {
     if (!rapport.trim()) return Alert.alert("Attention", "Veuillez écrire un bref rapport.");
 
+    // 👉 LE VERROU LOGIQUE EST ICI (Inclusion UML)
+    if (!photo || !signature || materielsUtilises.length === 0) {
+      return Alert.alert(
+        "Action impossible", 
+        "Vous devez obligatoirement ajouter une photo, faire signer le client et déclarer le matériel pour clôturer."
+      );
+    }
+    // 👉 FIN DU VERROU
+
     Alert.alert("Clôturer", "Confirmez-vous la fin de cette intervention ?", [
       { text: "Annuler", style: "cancel" },
       { 
