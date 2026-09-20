@@ -3,8 +3,8 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image } fro
 import { useRouter } from 'expo-router'; 
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
-// 👉 1. IMPORTATION DU FICHIER CONFIG
-import { API_URL } from '../config';
+// 👉 1. IMPORTATION DU FICHIER CONFIG CORRIGÉE (pointe vers le dossier constants)
+import { API_URL } from '../constants/config';
 
 export default function Index() {
   const [email, setEmail] = useState('');

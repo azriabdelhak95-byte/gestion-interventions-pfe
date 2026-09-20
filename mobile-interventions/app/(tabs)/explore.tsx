@@ -4,8 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 
-// 👉 IMPORTATION DU FICHIER CONFIG
-import { API_URL } from '../../config';
+// 👉 IMPORTATION DU FICHIER CONFIG CORRIGÉE
+import { API_URL } from '../../constants/config';
 
 // --- Données pour le calendrier en français ---
 const jours = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];

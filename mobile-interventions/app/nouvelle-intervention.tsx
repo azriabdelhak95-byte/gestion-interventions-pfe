@@ -7,8 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import SignatureScreen from 'react-native-signature-canvas';
 import * as ImageManipulator from 'expo-image-manipulator';
 
-// 👉 1. IMPORTATION DE TON FICHIER CONFIG
-import { API_URL } from '../config';
+// 👉 1. IMPORTATION DE TON FICHIER CONFIG CORRIGÉE
+import { API_URL } from '../constants/config';
 
 export default function NouvelleIntervention() {
   const router = useRouter();
@@ -90,13 +90,13 @@ export default function NouvelleIntervention() {
         return;
       }
 
-      // 👉 2. UTILISATION DE LA VARIABLE API_URL ET DU BADGE ICI !
+      //  2. UTILISATION DE LA VARIABLE API_URL ET DU BADGE ICI !
       const response = await fetch(`${API_URL}/interventions`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // 👉 ON MONTRE LE BADGE AU SERVEUR
+          'Authorization': `Bearer ${token}` //  ON MONTRE LE BADGE AU SERVEUR
         },
         body: JSON.stringify({
           technicien_id: userId,

@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 
+// 👉 IMPORTATION DE NOTRE BOÎTIER CENTRAL
+import { API_URL } from '../constants/config';
+
 export default function ForgotPasswordScreen() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -15,7 +18,8 @@ export default function ForgotPasswordScreen() {
         setLoading(true);
 
         try {
-            const response = await fetch('http://10.143.150.98:3000/api/forgot-password', {
+            // 👉 UTILISATION DE L'API_URL ICI AU LIEU DE L'ADRESSE EN DUR
+            const response = await fetch(`${API_URL}/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email }),

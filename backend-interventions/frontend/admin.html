@@ -343,14 +343,24 @@
                     ? `<img src="${intervention.photo_data}" style="max-width: 100%; max-height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;" alt="Photo">` 
                     : `<div style="padding:20px; border:1px dashed #cbd5e1; border-radius:6px; color: #94a3b8; background: #f8fafc;">En attente de photo</div>`;
 
-                const cardId = `rapport-${intervention.id_intervention || indexGlobal}`;
+                const cardId = `rapport-${intervention.id || indexGlobal}`;
                 const horaires = (intervention.heure_debut && intervention.heure_fin) 
                     ? `${intervention.heure_debut} à ${intervention.heure_fin}` 
                     : 'Horaires à planifier';
                 
+                // 👉 GESTION DES COULEURS ET BOUTONS MODIFIÉE ICI
                 let statutColor = '#dc2626';
-                if(intervention.statut === 'À Faire') statutColor = '#eab308';
-                if(intervention.statut === 'Terminé') statutColor = '#059669';
+                if(intervention.statut === 'À Faire' || intervention.statut === 'En attente' || intervention.statut === 'PLANIFIEE') statutColor = '#eab308';
+                if(intervention.statut === 'Terminé' || intervention.statut === 'TERMINEE') statutColor = '#059669';
+                if(intervention.statut === 'ANNULEE') statutColor = '#94a3b8'; // Gris pour annulée
+
+                // Le bouton magique (soit PDF, soit Annuler)
+                let btnAction = '';
+                if(intervention.statut === 'Terminé' || intervention.statut === 'TERMINEE') {
+                    btnAction = `<button class="btn-pdf" style="background:#dc2626;" onclick="genererPDF('${cardId}', '${intervention.nom_client || 'Client'}')">📄 PDF</button>`;
+                } else if (intervention.statut !== 'ANNULEE') {
+                    btnAction = `<button class="btn-pdf" style="background:#dc2626;" onclick="annulerMission('${intervention.id}')">❌ Annuler</button>`;
+                }
 
                 let htmlExtras = '';
                 if (extras.length > 0) {
@@ -378,10 +388,11 @@
                     });
                 }
 
+                // 👉 AFFICHAGE DU BOUTON BTNACTION DANS LA CARTE
                 container.innerHTML += `
                     <div class="card" id="${cardId}">
                         <div class="badge" style="background:${statutColor};">${intervention.statut || 'Terminé'}</div>
-                        ${intervention.statut === 'Terminé' ? `<button class="btn-pdf" onclick="genererPDF('${cardId}', '${intervention.nom_client || 'Client'}')">📄 PDF</button>` : ''}
+                        ${btnAction}
                         <h2 style="margin-top: 0; padding-right: 120px; color: #1e3a8a;">Client : ${intervention.nom_client || 'Non renseigné'}</h2>
                         <div class="info-row"><strong>Technicien :</strong> ${intervention.tech_nom || 'Inconnu'}</div>
                         <div class="info-row"><strong>Adresse chantier :</strong> ${intervention.adresse || 'Non renseignée'}</div>
@@ -485,6 +496,32 @@
                     alert("❌ Échec : " + (error.error || "Erreur inconnue."));
                 }
             } catch (err) { alert("❌ Erreur réseau."); }
+        }
+
+        // 👉 NOUVELLE FONCTION ANNULER MISSION AJOUTÉE ICI
+        async function annulerMission(idIntervention) {
+            if (!confirm("⚠️ Êtes-vous sûr de vouloir annuler cette mission ? Le technicien ne la verra plus sur son téléphone.")) return;
+            
+            try {
+                const res = await fetch(`/api/interventions/${idIntervention}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // On montre le badge de sécurité
+                    },
+                    body: JSON.stringify({ statut: 'ANNULEE' }) // On envoie le statut UML
+                });
+
+                if (res.ok) {
+                    alert("✅ La mission a été annulée avec succès !");
+                    loadRapports(); // Rafraîchit la page automatiquement
+                } else {
+                    alert("❌ Erreur lors de l'annulation.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("❌ Erreur de connexion au serveur.");
+            }
         }
 
         // --- GESTION DES TECHNICIENS ---

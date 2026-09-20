@@ -9,8 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
-// 👉 IMPORTATION DU FICHIER CONFIG
-import { API_URL } from '../../config';
+// 👉 IMPORTATION DU FICHIER CONFIG CORRIGÉE
+import { API_URL } from '../../constants/config';
 
 export default function MissionDetail() {
   const { id } = useLocalSearchParams();

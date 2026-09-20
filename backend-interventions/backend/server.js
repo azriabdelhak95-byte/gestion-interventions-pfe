@@ -124,7 +124,9 @@ app.post('/api/forgot-password', async (req, res) => {
             [resetToken, resetExpires, email]
         );
 
-        const resetLink = `http://localhost:3000/reset-password.html?token=${resetToken}`;
+        // 👉 TON ADRESSE IP EXACTE EST INTÉGRÉE ICI :
+        const resetLink = `http://192.168.0.109:3000/reset-password.html?token=${resetToken}`;
+        
         const mailOptions = {
             from: '"AZ Engineering Support" <azriabdelhak95@gmail.com>', 
             to: email, 
@@ -340,6 +342,7 @@ app.put('/api/interventions/:id', verifierToken, async (req, res) => {
     } finally { client.release(); }
 });
 
+// 👉 LA MODIFICATION DU FILTRE EST JUSTE ICI :
 app.get('/api/mes-missions/:id', verifierToken, async (req, res) => {
   try {
       const result = await pool.query(`
@@ -353,7 +356,9 @@ app.get('/api/mes-missions/:id', verifierToken, async (req, res) => {
         LEFT JOIN contrats_clients cc ON c.id_contrat = cc.id_contrat
         LEFT JOIN clients cl ON cc.id_client = cl.id_client
         LEFT JOIN photos_interventions p ON i.id_intervention = p.id_intervention
-        WHERE i.id_technicien = $1 ORDER BY i.date_prevue DESC NULLS LAST
+        WHERE i.id_technicien = $1 
+        AND i.statut IN ('PLANIFIEE', 'EN_COURS', 'En attente') 
+        ORDER BY i.date_prevue DESC NULLS LAST
       `, [req.params.id]);
       res.json({ success: true, missions: result.rows });
   } catch (err) { res.status(500).json({ success: false, error: "Erreur serveur" }); }
