@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcrypt'); 
 const nodemailer = require('nodemailer'); 
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken'); // 👉 SÉCURITÉ JWT
+const jwt = require('jsonwebtoken');
 
 dotenv.config();
 const app = express();
@@ -44,7 +44,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // ==========================================
-// --- 4. LE VIGILE DE SÉCURITÉ (MIDDLEWARE JWT) ---
+// --- 4. MIDDLEWARE JWT (SECURITE) ---
 // ==========================================
 const verifierToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -64,7 +64,7 @@ const verifierToken = (req, res, next) => {
 };
 
 // ==========================================
-// --- 5. SYSTÈME DE LOGIN (PUBLIC) ---
+// --- 5. SYSTEME DE LOGIN (PUBLIC) ---
 // ==========================================
 app.post('/api/login', async (req, res) => {
   const email = req.body.email;
@@ -105,7 +105,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// --- 6. RÉCUPÉRATION DE MOT DE PASSE (PUBLIC) ---
+// --- 6. RECUPERATION DE MOT DE PASSE ---
 // ==========================================
 app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
@@ -124,7 +124,6 @@ app.post('/api/forgot-password', async (req, res) => {
             [resetToken, resetExpires, email]
         );
 
-        // 👉 TON ADRESSE IP EXACTE EST INTÉGRÉE ICI :
         const resetLink = `http://192.168.0.109:3000/reset-password.html?token=${resetToken}`;
         
         const mailOptions = {
@@ -170,7 +169,7 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 // ==========================================
-// --- 7. GESTION DES TECHNICIENS (SÉCURISÉ) ---
+// --- 7. GESTION DES TECHNICIENS ---
 // ==========================================
 app.get('/api/techniciens', verifierToken, async (req, res) => {
     try {
@@ -209,7 +208,7 @@ app.delete('/api/techniciens/:id', verifierToken, async (req, res) => {
 });
 
 // ==========================================
-// --- 8. GESTION DU MATÉRIEL (SÉCURISÉ) ---
+// --- 8. GESTION DU MATERIEL ---
 // ==========================================
 app.get('/api/materiel', verifierToken, async (req, res) => {
   try {
@@ -232,7 +231,7 @@ app.post('/api/materiel', verifierToken, async (req, res) => {
     );
     res.status(201).json({ success: true, message: "Matériel ajouté." });
   } catch (error) { 
-    console.error("🚨 ERREUR BASE DE DONNÉES :", error); 
+    console.error("Erreur d'insertion materiel :", error); 
     res.status(500).json({ success: false, error: 'Erreur serveur' }); 
   }
 });
@@ -248,7 +247,7 @@ app.put('/api/materiel/:id/reassort', verifierToken, async (req, res) => {
 });
 
 // ==========================================
-// --- 9. GESTION DES MISSIONS (SÉCURISÉ) ---
+// --- 9. GESTION DES MISSIONS ---
 // ==========================================
 app.get('/api/interventions', verifierToken, async (req, res) => {
   try {
@@ -269,7 +268,7 @@ app.get('/api/interventions', verifierToken, async (req, res) => {
       `);
       res.json(result.rows);
   } catch (err) { 
-      console.error("🚨 Erreur GET /api/interventions :", err);
+      console.error("Erreur GET /api/interventions :", err);
       res.status(500).json({ error: "Erreur serveur" }); 
   }
 });
@@ -304,7 +303,6 @@ app.post('/api/interventions', verifierToken, async (req, res) => {
             id_chantier = chantierResult.rows[0].id_chantier;
         }
         
-        // 👉 LA CORRECTION EST ICI : Le traducteur de statut !
         let statutFinal = statut;
         if (statutFinal === 'À Faire') statutFinal = 'En attente';
         if (!statutFinal) statutFinal = 'En attente';
@@ -342,7 +340,6 @@ app.put('/api/interventions/:id', verifierToken, async (req, res) => {
     } finally { client.release(); }
 });
 
-// 👉 LA MODIFICATION DU FILTRE EST JUSTE ICI :
 app.get('/api/mes-missions/:id', verifierToken, async (req, res) => {
   try {
       const result = await pool.query(`
@@ -418,5 +415,5 @@ app.put('/api/missions/:id/cloturer', verifierToken, async (req, res) => {
 // ==========================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Serveur backend AZ Engineering écoute le port ${PORT}`);
+  console.log(`Serveur backend AZ Engineering écoute le port ${PORT}`);
 });
